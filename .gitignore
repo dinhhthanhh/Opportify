@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Next.js build output
+.next/
+out/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+careerviet_log.txt
+cb_log.txt
+crawl_log.txt
+update_log.txt
+debug_error.txt
+end_error*.txt
+last_error*.txt
