@@ -211,7 +211,6 @@ export default function ProfilePage() {
   if (!currentUser) return <div className="min-h-screen flex items-center justify-center text-slate-500">Đang khởi tạo tài khoản... Vui lòng thử tải lại trang.</div>;
 
   return (
-
     <div className="min-h-screen bg-slate-50 pb-20">
       <div className="bg-white border-b border-slate-200 px-6 py-8">
         <div className="max-w-6xl mx-auto flex items-center gap-4">
