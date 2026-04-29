@@ -1,44 +1,51 @@
 "use client"
-
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, User, LogOut, ChevronDown, Bell, FileText, Briefcase, Settings } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Sparkles, User, LogOut, ChevronDown, Bell, FileText, Briefcase, UserCircle2, Settings } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [user, setUser] = useState<{name: string, email: string} | null>(null);
+  const [user, setUser] = useState<{ name: string, email: string } | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Auto-login logic
-    const savedUser = localStorage.getItem("opportify_user");
-    if (!savedUser) {
-      const demoUser = { name: "Demo User", email: "demo@opportify.ai" };
-      localStorage.setItem("opportify_user", JSON.stringify(demoUser));
-      setUser(demoUser);
-    } else {
-      setUser(JSON.parse(savedUser));
-    }
-
-    // Fetch notifications
-    fetch("http://localhost:8000/api/v1/applications/notifications")
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setNotifications(data);
-        } else {
-          setNotifications([]);
+    const initApp = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+          await api.auth.autoLogin();
         }
-      })
-      .catch(err => {
+
+        // Auto-login logic
+        const savedUser = localStorage.getItem("opportify_user");
+        if (!savedUser) {
+          const demoUser = { name: "Demo User", email: "demo@opportify.ai" };
+          localStorage.setItem("opportify_user", JSON.stringify(demoUser));
+          setUser(demoUser);
+        } else {
+          setUser(JSON.parse(savedUser));
+        }
+
+        // Fetch notifications
+        const res = await fetch("http://localhost:8000/api/v1/applications/notifications");
+        const data = await res.json();
+        setNotifications(Array.isArray(data) ? data : []);
+
+      } catch (err) {
         console.error(err);
         setNotifications([]);
-      });
+      } finally {
+        setIsReady(true);
+      }
+    };
+    initApp();
 
     // Click outside handler
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,15 +80,14 @@ export default function Navbar() {
           <Sparkles size={28} className="text-amber-400 drop-shadow-sm" />
           Opportify<span className="text-slate-900">.</span>
         </Link>
-        
+
         <div className="hidden md:flex gap-8 font-semibold text-sm text-slate-600">
           {navLinks.map((link) => (
-            <Link 
-              key={link.href} 
-              href={link.href} 
-              className={`hover:text-blue-600 transition decoration-2 underline-offset-8 hover:underline ${
-                isActive(link.href) ? "text-blue-600 underline" : ""
-              }`}
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`hover:text-blue-600 transition decoration-2 underline-offset-8 hover:underline ${isActive(link.href) ? "text-blue-600 underline" : ""
+                }`}
             >
               {link.name}
             </Link>
@@ -91,10 +97,10 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-4 pl-4 border-l border-slate-100 relative">
-              
+
               {/* Notification Bell */}
               <div className="relative" ref={notifRef}>
-                <button 
+                <button
                   onClick={() => setIsNotifOpen(!isNotifOpen)}
                   className="p-2.5 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition relative active:scale-95"
                 >
@@ -109,18 +115,18 @@ export default function Navbar() {
                 {isNotifOpen && (
                   <div className="absolute right-0 mt-4 w-80 bg-white rounded-[1.5rem] shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-4 border-b border-slate-50 flex justify-between items-center">
-                       <h4 className="font-black text-sm text-slate-900">Thông báo</h4>
-                       <button className="text-[10px] font-bold text-blue-600 uppercase tracking-widest hover:underline">Đánh dấu đã đọc</button>
+                      <h4 className="font-black text-sm text-slate-900">Thông báo</h4>
+                      <button className="text-[10px] font-bold text-blue-600 uppercase tracking-widest hover:underline">Đánh dấu đã đọc</button>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       {notifications.length > 0 ? (
                         notifications.map((n) => (
                           <div key={n.id} className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer ${!n.is_read ? 'bg-blue-50/30' : ''}`}>
-                             <p className="text-xs font-black text-slate-900 mb-1">{n.title}</p>
-                             <p className="text-[11px] text-slate-500 leading-relaxed">{n.message}</p>
-                             <span className="text-[9px] font-bold text-slate-300 uppercase mt-2 block">
-                               {new Date(n.created_at).toLocaleTimeString()}
-                             </span>
+                            <p className="text-xs font-black text-slate-900 mb-1">{n.title}</p>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">{n.message}</p>
+                            <span className="text-[9px] font-bold text-slate-300 uppercase mt-2 block">
+                              {new Date(n.created_at).toLocaleTimeString()}
+                            </span>
                           </div>
                         ))
                       ) : (
@@ -136,7 +142,7 @@ export default function Navbar() {
 
               {/* User Dropdown */}
               <div className="relative" ref={dropdownRef}>
-                <button 
+                <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center gap-3 p-1.5 pl-3 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100 transition active:scale-95"
                 >
@@ -153,7 +159,7 @@ export default function Navbar() {
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="px-3 py-2 mb-2 border-b border-slate-50">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hồ sơ của bạn</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hồ sơ của bạn</p>
                     </div>
                     <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition">
                       <Sparkles size={18} className="text-amber-400" /> Hồ sơ năng lực
@@ -183,7 +189,8 @@ export default function Navbar() {
             </div>
           )}
         </div>
-      </div>
-    </nav>
+
+      </div >
+    </nav >
   );
 }

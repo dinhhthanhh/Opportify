@@ -1,17 +1,78 @@
-import { JobsResponse, Job, ScholarshipsResponse, SearchResults, Message, Scholarship } from './types';
+import { JobsResponse, Job, ScholarshipsResponse, SearchResults, Message, Scholarship, UserProfile, RecommendResponse, RecommendedJob, RecommendedScholarship} from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-  })
-  if (!res.ok) throw new Error(`API Error: ${res.status}`)
-  return res.json()
+  const headers = new Headers(options?.headers);
+
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  if (!res.ok) throw new Error(`API Error: ${res.status}`);
+  return res.json();
 }
 
 export const api = {
+   auth: {
+    autoLogin: async () => {
+      if (typeof window === "undefined") return;
+
+      const email = "an.nguyen@mock.opportify";
+      const username = "an_nguyen";
+      const password = "mock1234";
+
+      // Form data chuẩn OAuth2
+      const loginData = new URLSearchParams();
+      loginData.append("username", email); 
+      loginData.append("password", password);
+
+      try {
+        // 1. Thử đăng nhập
+        let res = await fetch(`${API_URL}/api/v1/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: loginData.toString()
+        });
+
+        // 2. Nếu thất bại (401 - chưa có tài khoản do DB trống), tiến hành Đăng ký
+        if (!res.ok) {
+          const regRes = await fetch(`${API_URL}/api/v1/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, username, password })
+          });
+
+          if (regRes.ok) {
+            // Đăng ký xong, gọi đăng nhập lại
+            res = await fetch(`${API_URL}/api/v1/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: loginData.toString()
+            });
+          } else {
+            console.error("Auto register failed");
+            return;
+          }
+        }
+
+        // 3. Lưu Token
+        const data = await res.json();
+        localStorage.setItem("access_token", data.access_token);
+      } catch (err) {
+        console.error("Auto auth failed", err);
+      }
+    }
+  },
+
   jobs: {
     list: (params: Record<string, string>) => {
       const qs = new URLSearchParams(params).toString()
@@ -30,6 +91,23 @@ export const api = {
   },
   search: (q: string, type = "all") =>
     apiFetch<SearchResults>(`/api/v1/search?q=${encodeURIComponent(q)}&type=${type}`),
+  profile: {
+    // MVP: Lấy mock user đầu tiên làm user đang đăng nhập
+    getMe: () => apiFetch<UserProfile>("/api/v1/profile/me"),
+    updateMe: (data: Partial<UserProfile>) =>
+      apiFetch<UserProfile>("/api/v1/profile/me", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  recommend: {
+    jobs: (userId: string) => 
+      apiFetch<RecommendResponse<RecommendedJob>>(`/api/v1/recommend/jobs?user_id=${userId}&limit=12`),
+    scholarships: (userId: string) => 
+      apiFetch<RecommendResponse<RecommendedScholarship>>(`/api/v1/recommend/scholarships?user_id=${userId}&limit=12`),
+  },
+  
   ai: {
     chat: (message: string, history: Message[]) =>
       apiFetch<{reply: string}>("/api/v1/ai/chat", {
