@@ -6,7 +6,14 @@ import Pagination from "@/components/search/Pagination"
 import { api } from "@/lib/api"
 
 interface SearchParams {
-  q?: string; location?: string; salary_min?: string; page?: string;
+  q?: string;
+  location?: string;
+  salary_min?: string;
+  salary_max?: string;
+  salary_currency?: string;
+  job_type?: string;
+  experience?: string;
+  page?: string;
 }
 
 export default async function JobsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -15,10 +22,24 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   
   let results: any[] = [];
   let total = 0;
+  let salaryMinBound = 0;
+  let salaryMaxBound = 0;
+  let salaryCurrency = "VND";
   try {
     const data = await api.jobs.list(params as any);
     results = data.results || [];
     total = data.total || 0;
+    if (results.length > 0) {
+      const salaryValues = results
+        .flatMap((job: any) => [job.salary_min, job.salary_max])
+        .filter((value: number | null | undefined) => typeof value === "number" && Number.isFinite(value)) as number[]
+
+      if (salaryValues.length > 0) {
+        salaryMinBound = Math.min(...salaryValues)
+        salaryMaxBound = Math.max(...salaryValues)
+      }
+      salaryCurrency = results.find((job: any) => typeof job.salary_currency === "string")?.salary_currency || salaryCurrency
+    }
   } catch (error) {
     console.error("Failed to fetch jobs:", error)
   }
@@ -34,7 +55,12 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       
       <div className="max-w-6xl mx-auto px-4 -mt-10">
         <div className="flex flex-col md:flex-row gap-8">
-          <FilterPanel className="w-full md:w-72 shrink-0 z-10" />
+          <FilterPanel
+            className="w-full md:w-72 shrink-0 z-10"
+            salaryMinBound={salaryMinBound}
+            salaryMaxBound={salaryMaxBound}
+            salaryCurrency={salaryCurrency}
+          />
           <div className="flex-1 mt-10 md:mt-0">
             <div className="flex justify-between items-end mb-6">
               <p className="text-slate-600 font-medium">Tìm thấy <span className="text-blue-600 font-bold text-lg">{total.toLocaleString()}</span> việc làm phù hợp</p>
