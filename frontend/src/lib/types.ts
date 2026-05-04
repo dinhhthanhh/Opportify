@@ -7,6 +7,13 @@ export interface Job {
   salary_max?: number
   salary_currency: string
   description: string
+  requirements?: string
+  benefits?: string
+  company_info?: string
+  job_level?: string
+  experience_years?: number
+  industry?: string
+  working_time?: string
   skills: string[]
   job_type: "fulltime" | "parttime" | "remote" | "internship"
   experience: "fresher" | "junior" | "mid" | "senior"
@@ -27,6 +34,12 @@ export interface Scholarship {
   amount: string
   deadline: string
   description: string
+  requirements?: string
+  benefits?: string
+  application_process?: string
+  gender_requirement?: string
+  nationality_requirement?: string
+  website_url?: string
   url: string
   match_score?: number
 }

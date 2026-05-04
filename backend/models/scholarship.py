@@ -17,6 +17,12 @@ class Scholarship(Base):
     amount = Column(String(255))
     deadline = Column(DateTime)
     description = Column(Text)
+    requirements = Column(Text)
+    benefits = Column(Text)
+    application_process = Column(Text)
+    gender_requirement = Column(String) # All, Male, Female
+    nationality_requirement = Column(String)
+    website_url = Column(String)
     url = Column(String(500), unique=True, nullable=False)
     source = Column(String(50))
     created_at = Column(DateTime, default=datetime.utcnow)

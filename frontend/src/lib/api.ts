@@ -1,4 +1,4 @@
-import { JobsResponse, Job, ScholarshipsResponse, SearchResults, Message } from './types';
+import { JobsResponse, Job, ScholarshipsResponse, SearchResults, Message, Scholarship } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
@@ -26,6 +26,7 @@ export const api = {
       return apiFetch<ScholarshipsResponse>(`/api/v1/scholarships?${qs}`)
     },
     filters: () => apiFetch<{ countries: string[]; fields: string[]; organizations: string[] }>("/api/v1/scholarships/filters"),
+    get: (id: string) => apiFetch<Scholarship>(`/api/v1/scholarships/${id}`),
   },
   search: (q: string, type = "all") =>
     apiFetch<SearchResults>(`/api/v1/search?q=${encodeURIComponent(q)}&type=${type}`),

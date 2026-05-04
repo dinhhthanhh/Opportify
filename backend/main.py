@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from routers import jobs, ai, auth, scholarships, profile, recommend
+from routers import jobs, ai, auth, scholarships, profile, recommend, applications
 from db.database import init_database
 
 @asynccontextmanager
@@ -27,6 +27,7 @@ app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(profile.router, prefix="/api/v1/profile", tags=["profile"])
 app.include_router(recommend.router, prefix="/api/v1/recommend", tags=["recommend"])
+app.include_router(applications.router, prefix="/api/v1/applications", tags=["applications"])
 
 @app.get("/")
 def read_root():

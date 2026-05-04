@@ -1,5 +1,6 @@
 import { Scholarship } from "@/lib/types";
 import { GraduationCap, MapPin, Calendar, ExternalLink, Award } from "lucide-react";
+import Link from "next/link";
 
 export default function ScholarshipCard({ scholarship }: { scholarship: Scholarship }) {
   return (
@@ -53,14 +54,12 @@ export default function ScholarshipCard({ scholarship }: { scholarship: Scholars
             <div className="text-lg font-black text-slate-900 tracking-tight">
               {scholarship.amount}
             </div>
-            <a 
-              href={scholarship.url} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <Link 
+              href={`/scholarships/${scholarship.id}`}
               className="flex items-center gap-2 text-indigo-600 font-bold text-sm hover:translate-x-1 transition-transform"
             >
               Chi tiết ứng tuyển <ExternalLink size={16} />
-            </a>
+            </Link>
           </div>
         </div>
       </div>
