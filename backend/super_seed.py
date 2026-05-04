@@ -10,54 +10,106 @@ from datetime import datetime, timedelta
 engine = create_async_engine(settings.DATABASE_URL)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
+JOB_DESCRIPTIONS = [
+    "Chúng tôi đang tìm kiếm một chuyên gia đầy nhiệt huyết để gia nhập đội ngũ. Bạn sẽ tham gia vào các dự án quy mô lớn, giải quyết những thách thức kỹ thuật phức tạp.",
+    "Cơ hội tuyệt vời để phát triển sự nghiệp trong môi trường công nghệ hiện đại. Chúng tôi ưu tiên tư duy sáng tạo và khả năng làm việc độc lập cao.",
+    "Tham gia xây dựng hệ sinh thái sản phẩm phục vụ hàng triệu người dùng. Bạn sẽ làm việc cùng những đồng nghiệp xuất sắc nhất trong ngành."
+]
+
+JOB_REQUIREMENTS = """
+- Ít nhất 2-3 năm kinh nghiệm trong lĩnh vực tương đương.
+- Thành thạo các ngôn ngữ lập trình và công cụ liên quan.
+- Tư duy logic tốt, khả năng giải quyết vấn đề nhanh nhạy.
+- Kỹ năng giao tiếp và làm việc nhóm hiệu quả.
+- Tiếng Anh đọc hiểu tài liệu chuyên ngành tốt.
+"""
+
+JOB_BENEFITS = """
+- Mức lương cạnh tranh, thưởng theo hiệu quả công việc (13-15 tháng lương/năm).
+- Bảo hiểm sức khỏe cao cấp cho nhân viên và người thân.
+- Môi trường làm việc năng động, trẻ trung, có pantry với trà, cafe miễn phí.
+- Lộ trình thăng tiến rõ ràng, được tài trợ các khóa học nâng cao nghiệp vụ.
+- Du lịch hàng năm, team building hàng quý.
+"""
+
+COMPANY_INFO = """
+Lô trình phát triển bền vững với hơn 10 năm kinh nghiệm trong lĩnh vực công nghệ. Chúng tôi tự hào là nơi hội tụ của những tài năng trẻ và khao khát đổi mới.
+"""
+
+SCHOLARSHIP_DESCRIPTION = "Chương trình học bổng uy tín nhằm hỗ trợ các sinh viên tài năng theo đuổi đam mê nghiên cứu và học tập tại các trường đại học hàng đầu thế giới."
+
+SCHOLARSHIP_REQUIREMENTS = """
+- Điểm trung bình học tập (GPA) từ 3.2/4.0 trở lên.
+- Chứng chỉ tiếng Anh (IELTS 6.5+ hoặc TOEFL tương đương).
+- Có thành tích trong các hoạt động ngoại khóa hoặc nghiên cứu khoa học.
+- Viết bài luận (Statement of Purpose) thuyết phục.
+- Hai thư giới thiệu từ giảng viên hoặc người hướng dẫn.
+"""
+
+SCHOLARSHIP_BENEFITS = """
+- Hỗ trợ 100% học phí trong suốt quá trình học.
+- Sinh hoạt phí hàng tháng từ 1,000 - 2,500 USD tùy quốc gia.
+- Hỗ trợ vé máy bay khứ hồi và phí làm visa.
+- Gói bảo hiểm y tế toàn diện.
+- Cơ hội tham gia các hội thảo quốc tế và mạng lưới cựu sinh viên toàn cầu.
+"""
+
+APPLICATION_PROCESS = """
+1. **Vòng hồ sơ:** Nộp đơn trực tuyến kèm theo các giấy tờ liên quan.
+2. **Vòng bài luận:** Đánh giá tư duy và khát vọng của ứng viên.
+3. **Vòng phỏng vấn:** Trao đổi trực tiếp với hội đồng tuyển chọn.
+4. **Thông báo kết quả:** Kết quả chính thức sẽ được gửi qua email sau 4 tuần.
+"""
+
 def generate_job_data():
     titles = [
         "Software Engineer", "Frontend Developer", "Backend Developer", "Fullstack Developer",
         "AI/ML Engineer", "Data Scientist", "DevOps Engineer", "Mobile App Developer",
         "Product Manager", "UI/UX Designer", "Marketing Manager", "Content Specialist",
-        "Sales Executive", "Business Analyst", "Human Resources Manager", "Accountant",
-        "Project Manager", "Cybersecurity Specialist", "Cloud Architect", "QA Tester"
+        "Sales Executive", "Business Analyst", "Human Resources Manager", "Accountant"
     ]
-    companies = [
-        "VNG Corporation", "FPT Software", "Viettel Group", "VNPT", "Grab Vietnam", 
-        "Shopee Vietnam", "Tiki.vn", "VinAI", "VinBrain", "Momo", "ZaloPay", 
-        "Techcombank", "Vietcombank", "Vingroup", "Sendo", "Kyber Network", "Axcie Infinity"
-    ]
+    companies = ["VNG Corporation", "FPT Software", "Viettel Group", "Grab", "Shopee", "Tiki", "VinAI", "Momo"]
     locations = ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Singapore", "Remote"]
-    skills_pool = ["Python", "JavaScript", "React", "Node.js", "SQL", "Docker", "AWS", "Java", "Go", "TypeScript", "Tailwind", "Git", "AI", "Agile"]
-    sources = ["direct", "vietnamworks", "linkedin", "topcv"]
-
+    skills_pool = ["Python", "JavaScript", "React", "Node.js", "SQL", "Docker", "AWS", "Java", "Go", "TypeScript"]
+    
     jobs = []
-    for i in range(150):
+    for i in range(100):
         salary_min = random.randint(15, 60) * 1000000
         salary_max = salary_min + random.randint(10, 40) * 1000000
         
         jobs.append(Job(
             id=uuid.uuid4(),
-            title=f"{random.choice(titles)} ({random.choice(['Senior', 'Junior', 'Mid-level'])})",
+            title=f"{random.choice(titles)} ({random.choice(['Senior', 'Junior', 'Mid'])})",
             company=random.choice(companies),
             location=random.choice(locations),
             salary_min=salary_min,
             salary_max=salary_max,
             salary_currency="VND",
-            description=f"Chúng tôi đang tìm kiếm ứng viên xuất sắc cho vị trí này. Cơ hội làm việc trong môi trường năng động với đãi ngộ hấp dẫn.",
-            skills=random.sample(skills_pool, k=min(len(skills_pool), random.randint(3, 6))),
-            job_type=random.choice(["fulltime", "parttime", "contract"]),
+            description=random.choice(JOB_DESCRIPTIONS),
+            requirements=JOB_REQUIREMENTS,
+            benefits=JOB_BENEFITS,
+            company_info=COMPANY_INFO,
+            job_level=random.choice(["Senior", "Junior", "Mid", "Intern"]),
+            experience_years=random.randint(0, 5),
+            industry=random.choice(["IT", "Finance", "Healthcare", "E-commerce"]),
+            working_time="Thứ 2 - Thứ 6",
+            skills=random.sample(skills_pool, k=random.randint(3, 6)),
+            job_type=random.choice(["fulltime", "parttime", "remote"]),
             experience=random.choice(["fresher", "junior", "mid", "senior"]),
-            url=f"https://opportify.ai/jobs/internal-{uuid.uuid4()}",
-            source=random.choice(sources),
-            crawled_at=datetime.utcnow() - timedelta(days=random.randint(0, 10))
+            url=f"https://opportify.ai/jobs/{uuid.uuid4()}",
+            source=random.choice(["vietnamworks", "topcv", "careerviet"]),
+            posted_at=datetime.utcnow() - timedelta(days=random.randint(0, 30))
         ))
     return jobs
 
 def generate_scholarship_data():
-    countries = ["Đức", "Anh", "Mỹ", "Nhật Bản", "Úc", "Pháp", "Canada", "Thụy Sĩ"]
+    countries = ["Đức", "Anh", "Mỹ", "Nhật Bản", "Úc", "Pháp", "Canada"]
     levels = ["bachelor", "master", "phd", "postdoc"]
-    organizations = ["DAAD", "Chevening", "Fullbright", "MEXT", "Erasmus+", "AAS", "Vingroup Scholarship"]
-    fields = ["Engineering", "Computer Science", "Business", "Medicine", "Social Science", "Data Science"]
+    organizations = ["DAAD", "Chevening", "Fullbright", "MEXT", "Erasmus+", "Vingroup"]
+    fields = ["Engineering", "Computer Science", "Business", "Medicine", "Arts"]
 
     scholarships = []
-    for i in range(50):
+    for i in range(40):
         scholarships.append(Scholarship(
             id=uuid.uuid4(),
             title=f"Học bổng {random.choice(levels).capitalize()} {random.choice(fields)} tại {random.choice(countries)}",
@@ -66,10 +118,16 @@ def generate_scholarship_data():
             level=random.choice(levels),
             field=random.choice(fields),
             coverage=random.choice(["full", "partial", "tuition_only"]),
-            amount=f"{random.randint(1000, 3000)} EUR/month" if i % 2 == 0 else "100% Học phí + Sinh hoạt phí",
+            amount=f"{random.randint(1000, 3000)} EUR/month",
             deadline=datetime.utcnow() + timedelta(days=random.randint(30, 180)),
-            description="Chương trình học bổng uy tín dành cho các sinh viên có thành tích học tập xuất sắc và khát vọng cống hiến.",
-            url=f"https://opportify.ai/scholarships/internal-{uuid.uuid4()}",
+            description=SCHOLARSHIP_DESCRIPTION,
+            requirements=SCHOLARSHIP_REQUIREMENTS,
+            benefits=SCHOLARSHIP_BENEFITS,
+            application_process=APPLICATION_PROCESS,
+            gender_requirement="Tất cả",
+            nationality_requirement="Việt Nam",
+            website_url="https://scholarship-provider.com",
+            url=f"https://opportify.ai/scholarships/{uuid.uuid4()}",
             source="opportify",
             created_at=datetime.utcnow()
         ))
@@ -78,17 +136,14 @@ def generate_scholarship_data():
 async def seed_data():
     async with async_session() as session:
         async with session.begin():
-            # Clear old data to prevent duplication during demo
-            # await session.execute(text("DELETE FROM jobs"))
-            # await session.execute(text("DELETE FROM scholarships"))
-            
+            from sqlalchemy import text
+            await session.execute(text("DELETE FROM jobs"))
+            await session.execute(text("DELETE FROM scholarships"))
             jobs = generate_job_data()
             scholarships = generate_scholarship_data()
-            
             for item in jobs + scholarships:
                 session.add(item)
-                
-        print(f"Đã nạp thành công 200+ bản ghi (150 Việt làm, 50 Học bổng)!")
+        print(f"Đã nạp thành công dữ liệu mẫu phong phú!")
 
 if __name__ == "__main__":
     asyncio.run(seed_data())

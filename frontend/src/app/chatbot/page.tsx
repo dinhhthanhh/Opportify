@@ -1,24 +1,29 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User, Trash2, Sparkles, Sidebar as SidebarIcon, MessageSquare } from "lucide-react"
+import { Send, Bot, User, Trash2, Sparkles, MessageSquare } from "lucide-react"
 import { api } from "@/lib/api"
 import { Message } from "@/lib/types"
+import ReactMarkdown from 'react-markdown'
 
 export default function ChatbotPage() {
   const [messages, setMessages] = useState<{role: string; content: string}[]>([
-    { role: "assistant", content: "Chào mừng bạn đến với AI Career Explorer! Tôi là Claude, được tối ưu riêng để tư vấn nghề nghiệp và học bổng. Hôm nay tôi có thể giúp gì cho bạn? Bạn có thể hỏi về:\n- Cách tối ưu CV cho ngành IT\n- Tìm kiếm học bổng Master tại Đức\n- Lộ trình phát triển từ Junior lên Senior" }
+    { role: "assistant", content: "Chào mừng bạn đến với **AI Career Explorer**! Tôi là trợ lý AI chuyên biệt về sự nghiệp.\n\nHôm nay tôi có thể giúp gì cho bạn? Bạn có thể thử:\n- **### Tối ưu CV:** \"Làm sao để CV IT nổi bật?\"\n- **### Tìm học bổng:** \"Học bổng thạc sĩ tại Đức năm 2025?\"\n- **### Lộ trình:** \"Lộ trình từ Intern lên Senior Backend?\"" }
   ])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  // Scroll only when messages change, but not on initial mount or simple navigation
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
   }
 
   useEffect(() => {
-    scrollToBottom()
+    if (messages.length > 1) {
+      scrollToBottom()
+    }
   }, [messages])
 
   const sendMessage = async () => {
@@ -43,7 +48,7 @@ export default function ChatbotPage() {
       {/* Sidebar - Desktop Only */}
       <aside className="hidden md:flex w-80 bg-slate-50 border-r border-slate-200 flex-col">
         <div className="p-6">
-          <button className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 hover:bg-slate-100 transition-all shadow-sm">
+          <button onClick={() => setMessages([messages[0]])} className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 hover:bg-slate-100 transition-all shadow-sm active:scale-95">
             <MessageSquare size={18} /> Chat mới
           </button>
         </div>
@@ -78,37 +83,39 @@ export default function ChatbotPage() {
               <Bot size={20} className="text-blue-600" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-slate-800 tracking-tight">Claude AI Advisor</h2>
+              <h2 className="text-sm font-black text-slate-800 tracking-tight">Opportify AI Advisor</h2>
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Hoạt động</span>
               </div>
             </div>
           </div>
-          <button className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Xóa lịch sử">
+          <button onClick={() => setMessages([messages[0]])} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Xóa lịch sử">
             <Trash2 size={18} />
           </button>
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8">
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 bg-slate-50/30">
           <div className="max-w-3xl mx-auto space-y-8">
             {messages.map((m, i) => (
               <div key={i} className={`flex gap-4 md:gap-6 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
                 <div className={`w-8 h-8 md:w-10 md:h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
-                  m.role === "user" ? "bg-slate-100 text-slate-600" : "bg-blue-600 text-white"
+                  m.role === "user" ? "bg-slate-900 text-white" : "bg-white border border-slate-100 text-blue-600"
                 }`}>
                   {m.role === "user" ? <User size={20} /> : <Bot size={20} />}
                 </div>
-                <div className={`flex flex-col gap-2 max-w-[85%] md:max-w-[75%] ${m.role === "user" ? "items-end" : ""}`}>
-                  <div className={`p-4 md:p-5 rounded-3xl text-sm md:text-base leading-relaxed font-medium shadow-sm border ${
+                <div className={`flex flex-col gap-2 max-w-[85%] md:max-w-[80%] ${m.role === "user" ? "items-end" : ""}`}>
+                  <div className={`p-4 md:p-5 rounded-3xl text-sm md:text-base leading-relaxed shadow-sm border ${
                     m.role === "user" 
-                      ? "bg-slate-900 text-white border-slate-800 rounded-tr-none" 
-                      : "bg-white border-slate-100 text-slate-700 rounded-tl-none"
+                      ? "bg-blue-600 text-white border-blue-500 rounded-tr-none font-medium" 
+                      : "bg-white border-slate-100 text-slate-700 rounded-tl-none prose prose-slate max-w-none"
                   }`}>
-                    {m.content.split('\n').map((line, idx) => (
-                      <p key={idx} className={idx > 0 ? "mt-2" : ""}>{line}</p>
-                    ))}
+                    {m.role === "assistant" ? (
+                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                    ) : (
+                      m.content
+                    )}
                   </div>
                   <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-1">
                     {m.role === "user" ? "Bạn" : "AI Advisor"} • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -118,10 +125,10 @@ export default function ChatbotPage() {
             ))}
             {loading && (
               <div className="flex gap-4 md:gap-6">
-                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-blue-600 flex items-center justify-center shrink-0">
                   <Bot size={20} />
                 </div>
-                <div className="bg-slate-50 border border-slate-100 p-5 rounded-3xl rounded-tl-none shadow-sm flex items-center gap-2">
+                <div className="bg-white border border-slate-100 p-5 rounded-3xl rounded-tl-none shadow-sm flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
@@ -133,9 +140,9 @@ export default function ChatbotPage() {
         </div>
 
         {/* Input Area */}
-        <div className="p-6 md:p-10 bg-gradient-to-t from-white via-white to-transparent">
+        <div className="p-6 md:p-10 bg-white border-t border-slate-100">
           <div className="max-w-3xl mx-auto">
-            <div className="relative flex items-center bg-white border-2 border-slate-100 rounded-[2rem] p-2 pr-4 shadow-2xl shadow-blue-500/5 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/5 transition-all">
+            <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-[2rem] p-2 pr-4 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/5 transition-all">
               <input
                 value={input}
                 onChange={e => setInput(e.target.value)}
@@ -152,7 +159,7 @@ export default function ChatbotPage() {
               </button>
             </div>
             <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4">
-              AI có thể đưa ra câu trả lời không chính xác. Hãy kiểm tra lại thông tin quan trọng.
+              Dữ liệu được xử lý bởi AI Qwen3 • Chuyên nghiệp & Tận tâm
             </p>
           </div>
         </div>

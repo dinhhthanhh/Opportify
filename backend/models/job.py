@@ -16,6 +16,13 @@ class Job(Base):
     salary_max = Column(Integer)
     salary_currency = Column(String(10), default='VND')
     description = Column(Text)
+    requirements = Column(Text)
+    benefits = Column(Text)
+    company_info = Column(Text)
+    job_level = Column(String) # Senior, Junior, Intern
+    experience_years = Column(Integer)
+    industry = Column(String)
+    working_time = Column(String) # e.g. Mon-Fri
     skills = Column(ARRAY(String), default=[])
     job_type = Column(String(50))
     experience = Column(String(50))

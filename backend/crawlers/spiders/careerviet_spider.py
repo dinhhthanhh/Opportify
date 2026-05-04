@@ -13,11 +13,11 @@ class CareerVietSpider(scrapy.Spider):
         jobs = response.css(".job-item")
         
         for job in jobs:
-            title = job.css(".title a::text").get()
-            company = job.css(".company-name::text").get()
+            title = job.css("a.job_link::text").get()
+            company = job.css("a.company-name::text").get()
             location = job.css(".location ul li::text").get()
-            salary = job.css(".salary::text").get()
-            url = job.css(".title a::attr(href)").get()
+            salary = job.css("p::text").get()
+            url = job.css("a.job_link::attr(href)").get()
             
             # Clean data
             title = title.strip() if title else ""

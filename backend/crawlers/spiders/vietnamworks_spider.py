@@ -6,10 +6,10 @@ class VietnamWorksSpider(scrapy.Spider):
     name = "vietnamworks"
     
     # Algolia credentials found via browser investigation
-    ALGOLIA_URL = "https://u97s6s8i86-dsn.algolia.net/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.22.1)%3B%20Browser%20(lite)"
+    ALGOLIA_URL = "https://jf8q26wwud-dsn.algolia.net/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.22.1)%3B%20Browser%20(lite)"
     ALGOLIA_HEADERS = {
-        "X-Algolia-API-Key": "b36440f82dfdf77180ba30e461a33716",
-        "X-Algolia-Application-Id": "U97S6S8I86",
+        "X-Algolia-API-Key": "ecef10153e66bbd6d54f08ea005b60fc",
+        "X-Algolia-Application-Id": "JF8Q26WWUD",
         "Content-Type": "application/json",
     }
 

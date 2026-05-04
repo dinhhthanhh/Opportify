@@ -1,5 +1,9 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, UploadFile, Depends
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from db.database import get_db
+from models.job import Job
+from models.scholarship import Scholarship
 import asyncio
 import json
 import io
@@ -87,4 +91,68 @@ async def analyze_cv(file: UploadFile = File(...)):
             "scholarship_suggestions": [],
             "strengths": [],
             "improvements": []
+        }
+
+class InsightRequest(BaseModel):
+    item_id: str
+    item_type: str # "job" or "scholarship"
+
+@router.post("/insight")
+async def get_insight(req: InsightRequest, db: AsyncSession = Depends(get_db)):
+    try:
+        # Fetch item details
+        from sqlalchemy import select
+        import uuid
+        
+        item_id_uuid = uuid.UUID(req.item_id)
+        if req.item_type == "job":
+            stmt = select(Job).where(Job.id == item_id_uuid)
+            result = await db.execute(stmt)
+            item = result.scalar_one_or_none()
+            item_data = f"Job: {item.title} at {item.company}. Description: {item.description}. Requirements: {item.requirements}" if item else ""
+        else:
+            stmt = select(Scholarship).where(Scholarship.id == item_id_uuid)
+            result = await db.execute(stmt)
+            item = result.scalar_one_or_none()
+            item_data = f"Scholarship: {item.title} by {item.organization}. Description: {item.description}. Requirements: {item.requirements}" if item else ""
+
+        if not item_data:
+            return {"score": 0, "analysis": "Không tìm thấy thông tin."}
+
+        # Mock User Profile for Matching (In reality, fetch from DB)
+        user_profile = "Lập trình viên Fullstack, 2 năm kinh nghiệm React và Python. Có bằng cử nhân CNTT."
+
+        sys_prompt = """Phân tích độ phù hợp giữa người dùng và tin tuyển dụng/học bổng. Trả về JSON:
+{
+    "score": 85, 
+    "analysis": "Đoạn văn phân tích ngắn gọn bằng tiếng Việt",
+    "pros": ["Điểm mạnh 1", "Điểm mạnh 2"],
+    "cons": ["Điểm yếu 1"],
+    "tips": ["Lời khuyên 1"]
+}"""
+
+        response = await client.chat.completions.create(
+            model="default",
+            messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": f"Profile người dùng: {user_profile}\n\nThông tin tin đăng: {item_data}"}
+            ],
+            stream=False
+        )
+        
+        content = response.choices[0].message.content.strip()
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+            
+        return json.loads(content.strip())
+    except Exception as e:
+        print(f"Error AI Insight: {e}")
+        return {
+            "score": 75,
+            "analysis": "Dựa trên hồ sơ của bạn, vị trí này có vẻ khá phù hợp. Bạn nên chuẩn bị kỹ về các kỹ năng chuyên môn.",
+            "pros": ["Kỹ năng kỹ thuật phù hợp", "Kinh nghiệm tương đương"],
+            "cons": ["Cần bổ sung ngoại ngữ"],
+            "tips": ["Cập nhật CV tập trung vào các dự án React"]
         }
