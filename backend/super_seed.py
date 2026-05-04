@@ -36,6 +36,8 @@ COMPANY_INFO = """
 Lô trình phát triển bền vững với hơn 10 năm kinh nghiệm trong lĩnh vực công nghệ. Chúng tôi tự hào là nơi hội tụ của những tài năng trẻ và khao khát đổi mới.
 """
 
+sources = ["opportify", "crawler", "seed"]
+
 SCHOLARSHIP_DESCRIPTION = "Chương trình học bổng uy tín nhằm hỗ trợ các sinh viên tài năng theo đuổi đam mê nghiên cứu và học tập tại các trường đại học hàng đầu thế giới."
 
 SCHOLARSHIP_REQUIREMENTS = """
@@ -77,6 +79,11 @@ def generate_job_data():
         salary_min = random.randint(15, 60) * 1000000
         salary_max = salary_min + random.randint(10, 40) * 1000000
         
+        # Tọa độ giả lập quanh Hà Nội (21.0, 105.8) hoặc HCM (10.7, 106.6)
+        is_hanoi = random.choice([True, False])
+        lat = 21.0285 + random.uniform(-0.1, 0.1) if is_hanoi else 10.7626 + random.uniform(-0.1, 0.1)
+        lon = 105.8542 + random.uniform(-0.1, 0.1) if is_hanoi else 106.6602 + random.uniform(-0.1, 0.1)
+
         jobs.append(Job(
             id=uuid.uuid4(),
             title=f"{random.choice(titles)} ({random.choice(['Senior', 'Junior', 'Mid'])})",
@@ -96,9 +103,14 @@ def generate_job_data():
             skills=random.sample(skills_pool, k=random.randint(3, 6)),
             job_type=random.choice(["fulltime", "parttime", "remote"]),
             experience=random.choice(["fresher", "junior", "mid", "senior"]),
-            url=f"https://opportify.ai/jobs/{uuid.uuid4()}",
-            source=random.choice(["vietnamworks", "topcv", "careerviet"]),
-            posted_at=datetime.utcnow() - timedelta(days=random.randint(0, 30))
+            url=f"https://opportify.ai/jobs/internal-{uuid.uuid4()}",
+            source=random.choice(sources),
+            posted_at=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
+            deadline=datetime.utcnow() + timedelta(days=random.randint(5, 60)),
+            view_count=random.randint(10, 5000),
+            latitude=str(lat),
+            longitude=str(lon),
+            crawled_at=datetime.utcnow()
         ))
     return jobs
 
@@ -109,7 +121,8 @@ def generate_scholarship_data():
     fields = ["Engineering", "Computer Science", "Business", "Medicine", "Arts"]
 
     scholarships = []
-    for i in range(40):
+    for i in range(50):
+        numeric_amt = random.randint(500, 5000)
         scholarships.append(Scholarship(
             id=uuid.uuid4(),
             title=f"Học bổng {random.choice(levels).capitalize()} {random.choice(fields)} tại {random.choice(countries)}",
@@ -118,8 +131,6 @@ def generate_scholarship_data():
             level=random.choice(levels),
             field=random.choice(fields),
             coverage=random.choice(["full", "partial", "tuition_only"]),
-            amount=f"{random.randint(1000, 3000)} EUR/month",
-            deadline=datetime.utcnow() + timedelta(days=random.randint(30, 180)),
             description=SCHOLARSHIP_DESCRIPTION,
             requirements=SCHOLARSHIP_REQUIREMENTS,
             benefits=SCHOLARSHIP_BENEFITS,
@@ -128,8 +139,14 @@ def generate_scholarship_data():
             nationality_requirement="Việt Nam",
             website_url="https://scholarship-provider.com",
             url=f"https://opportify.ai/scholarships/{uuid.uuid4()}",
+            amount=f"{numeric_amt} EUR/month" if i % 2 == 0 else "100% Học phí + Sinh hoạt phí",
+            numeric_amount=numeric_amt if i % 2 == 0 else 10000, # Giả lập 10000 cho học bổng toàn phần
+            deadline=datetime.utcnow() + timedelta(days=random.randint(30, 180)),
+            view_count=random.randint(100, 10000),
+            competitiveness_score=random.randint(1, 10),
+            # url=f"https://opportify.ai/scholarships/internal-{uuid.uuid4()}",
             source="opportify",
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow() - timedelta(days=random.randint(0, 60))
         ))
     return scholarships
 

@@ -38,3 +38,7 @@ class User(Base):
     # Lĩnh vực quan tâm (AI, Backend, Frontend, Data...)
     interest_fields = Column(ARRAY(String), default=[], server_default='{}')
 
+    # Địa lý
+    latitude = Column(String(50), nullable=True)
+    longitude = Column(String(50), nullable=True)
+

@@ -7,6 +7,8 @@ import { api } from "@/lib/api"
 import { Scholarship } from "@/lib/types"
 import { GraduationCap } from "lucide-react"
 
+import SortDropdown from "@/components/search/SortDropdown"
+
 interface SearchParams {
   q?: string;
   country?: string;
@@ -16,6 +18,8 @@ interface SearchParams {
   organization?: string;
   deadline_to?: string;
   page?: string;
+  sort_by?: string; 
+  order?: string;
 }
 
 export default async function ScholarshipsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -30,6 +34,14 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
   } catch (error) {
     console.error("Failed to fetch scholarships:", error)
   }
+
+  const sortOptions = [
+    { label: "Hạn nộp (Gần nhất)", value: "deadline", order: "asc" as const },
+    { label: "Giá trị học bổng cao nhất", value: "value", order: "desc" as const },
+    { label: "Độ phù hợp AI", value: "match_score", order: "desc" as const },
+    { label: "Ngày đăng mới nhất", value: "posted_at", order: "desc" as const },
+    { label: "Độ cạnh tranh thấp nhất", value: "competitiveness", order: "asc" as const },
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -57,11 +69,7 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
           <div className="flex-1">
             <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
               <p className="text-slate-500 font-bold ml-2">Tìm thấy <span className="text-indigo-600">{total}</span> học bổng phù hợp</p>
-              <div className="flex gap-2">
-                <button className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
-              </div>
+              <SortDropdown options={sortOptions} defaultValue="deadline" />
             </div>
             
             <div className="space-y-6">
