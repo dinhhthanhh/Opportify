@@ -1,11 +1,52 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from db.database import get_db
 from models.scholarship import Scholarship
 from typing import List, Optional
+from datetime import datetime, date, time
 
 router = APIRouter()
+
+@router.get("/filters")
+async def get_scholarship_filters(db: AsyncSession = Depends(get_db)):
+    base_query = select(Scholarship)
+
+    country_query = (
+        select(Scholarship.country)
+        .where(Scholarship.country.isnot(None))
+        .where(func.length(func.trim(Scholarship.country)) > 0)
+        .distinct()
+        .order_by(Scholarship.country)
+    )
+    field_query = (
+        select(Scholarship.field)
+        .where(Scholarship.field.isnot(None))
+        .where(func.length(func.trim(Scholarship.field)) > 0)
+        .distinct()
+        .order_by(Scholarship.field)
+    )
+    organization_query = (
+        select(Scholarship.organization)
+        .where(Scholarship.organization.isnot(None))
+        .where(func.length(func.trim(Scholarship.organization)) > 0)
+        .distinct()
+        .order_by(Scholarship.organization)
+    )
+
+    country_result = await db.execute(country_query)
+    field_result = await db.execute(field_query)
+    organization_result = await db.execute(organization_query)
+
+    countries = [row[0] for row in country_result.fetchall() if row[0]]
+    fields = [row[0] for row in field_result.fetchall() if row[0]]
+    organizations = [row[0] for row in organization_result.fetchall() if row[0]]
+
+    return {
+        "countries": countries,
+        "fields": fields,
+        "organizations": organizations,
+    }
 
 @router.get("/")
 async def get_scholarships(
@@ -14,8 +55,17 @@ async def get_scholarships(
     q: Optional[str] = None,
     country: Optional[str] = None,
     level: Optional[str] = None,
+    coverage: Optional[str] = None,
+    field: Optional[str] = None,
+    organization: Optional[str] = None,
+    deadline_to: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
+    def parse_csv(value: Optional[str]) -> List[str]:
+        if not value:
+            return []
+        return [item.strip().lower() for item in value.split(",") if item.strip()]
+
     query = select(Scholarship)
     
     if q:
@@ -24,6 +74,23 @@ async def get_scholarships(
         query = query.where(Scholarship.country.ilike(f"%{country}%"))
     if level:
         query = query.where(Scholarship.level.ilike(f"%{level}%"))
+    coverage_list = parse_csv(coverage)
+    if coverage_list:
+        query = query.where(func.lower(Scholarship.coverage).in_(coverage_list))
+    if field:
+        query = query.where(Scholarship.field.ilike(f"%{field}%"))
+    if organization:
+        query = query.where(Scholarship.organization.ilike(f"%{organization}%"))
+    if deadline_to:
+        try:
+            if "T" in deadline_to:
+                end_dt = datetime.fromisoformat(deadline_to)
+            else:
+                end_date = datetime.strptime(deadline_to, "%Y-%m-%d").date()
+                end_dt = datetime.combine(end_date, time.max)
+            query = query.where(Scholarship.deadline <= end_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid deadline_to date")
         
     # Count total for pagination
     count_query = select(func.count()).select_from(query.subquery())

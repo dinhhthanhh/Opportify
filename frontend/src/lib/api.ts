@@ -18,12 +18,14 @@ export const api = {
       return apiFetch<JobsResponse>(`/api/v1/jobs?${qs}`)
     },
     get: (id: string) => apiFetch<Job>(`/api/v1/jobs/${id}`),
+    locations: () => apiFetch<{ results: string[] }>("/api/v1/jobs/locations"),
   },
   scholarships: {
     list: (params: Record<string, string>) => {
       const qs = new URLSearchParams(params).toString()
       return apiFetch<ScholarshipsResponse>(`/api/v1/scholarships?${qs}`)
     },
+    filters: () => apiFetch<{ countries: string[]; fields: string[]; organizations: string[] }>("/api/v1/scholarships/filters"),
   },
   search: (q: string, type = "all") =>
     apiFetch<SearchResults>(`/api/v1/search?q=${encodeURIComponent(q)}&type=${type}`),

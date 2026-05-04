@@ -1,5 +1,5 @@
 import SearchBar from "@/components/search/SearchBar"
-import FilterPanel from "@/components/search/FilterPanel"
+import ScholarshipFilterPanel from "@/components/search/ScholarshipFilterPanel"
 import ScholarshipCard from "@/components/cards/ScholarshipCard"
 import ChatWidget from "@/components/chatbot/ChatWidget"
 import Pagination from "@/components/search/Pagination"
@@ -8,7 +8,14 @@ import { Scholarship } from "@/lib/types"
 import { GraduationCap } from "lucide-react"
 
 interface SearchParams {
-  q?: string; country?: string; level?: string; page?: string;
+  q?: string;
+  country?: string;
+  level?: string;
+  coverage?: string;
+  field?: string;
+  organization?: string;
+  deadline_to?: string;
+  page?: string;
 }
 
 export default async function ScholarshipsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -44,40 +51,7 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
         <div className="flex flex-col lg:flex-row gap-10">
           {/* Filters */}
           <div className="w-full lg:w-80 shrink-0">
-             <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-xl shadow-slate-200/50 sticky top-24">
-                <h3 className="text-lg font-black text-slate-900 mb-6 flex items-center gap-2">
-                  <span className="w-2 h-6 bg-indigo-600 rounded-full"></span>
-                  Bộ lọc tìm kiếm
-                </h3>
-                
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Bậc học</label>
-                    <select className="w-full bg-slate-50 border border-slate-100 text-slate-700 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all cursor-pointer appearance-none">
-                      <option>Tất cả các bậc</option>
-                      <option>Cử nhân (Bachelor)</option>
-                      <option>Thạc sĩ (Master)</option>
-                      <option>Tiến sĩ (PhD)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Loại hỗ trợ</label>
-                    <div className="space-y-2">
-                      {["Toàn phần", "Bán phần", "Hỗ trợ học phí"].map((type) => (
-                        <label key={type} className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-xl border border-transparent hover:border-indigo-100 hover:bg-white transition-all cursor-pointer group">
-                           <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                           <span className="text-sm font-semibold text-slate-600 group-hover:text-indigo-600 transition-colors">{type}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 transition-all active:scale-95">
-                    Áp dụng bộ lọc
-                  </button>
-                </div>
-             </div>
+            <ScholarshipFilterPanel />
           </div>
 
           <div className="flex-1">
