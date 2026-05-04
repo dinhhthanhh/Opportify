@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LEVEL_LABELS: Record<string, string> = { fresher: "Fresher", junior: "Junior", mid: "Mid-level", senior: "Senior" };
 const EDU_LABELS: Record<string, string> = { bachelor: "Cử nhân / Đại học", master: "Thạc sĩ", phd: "Tiến sĩ" };
+const JOBTYPE_LABELS: Record<string, string> = { fulltime: "Toàn thời gian", parttime: "Bán thời gian", remote: "Từ xa", internship: "Thực tập" };
 
 function ScoreBadge({ score }: { score: number }) {
   const pct = Math.round(score);
@@ -24,6 +25,71 @@ function ScoreBadge({ score }: { score: number }) {
         <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
       <span className={`text-xs font-black ${pct >= 70 ? "text-emerald-600" : pct >= 40 ? "text-amber-600" : "text-slate-500"}`}>{pct}%</span>
+    </div>
+  );
+}
+
+function MatchReasons({ reasons }: { reasons?: string[] }) {
+  if (!reasons || reasons.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-3">
+      {reasons.map((r, i) => (
+        <span key={i} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100">
+          <CheckCircle2 size={10} className="shrink-0" /> {r}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function formatSalary(min?: number, max?: number, currency?: string) {
+  if (!min && !max) return null;
+  const fmt = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+    return n.toString();
+  };
+  const cur = currency || "VND";
+  if (min && max) return `${fmt(min)} - ${fmt(max)} ${cur}`;
+  if (min) return `Từ ${fmt(min)} ${cur}`;
+  return `Đến ${fmt(max!)} ${cur}`;
+}
+
+function ProfileCompleteness({ user }: { user: UserProfile }) {
+  const fields = [
+    { label: "Kỹ năng", filled: (user.skills?.length || 0) > 0 },
+    { label: "Cấp bậc", filled: !!user.experience_level },
+    { label: "Học vấn", filled: !!user.education_level },
+    { label: "Ngành học", filled: !!user.education_field },
+    { label: "Lĩnh vực quan tâm", filled: (user.interest_fields?.length || 0) > 0 },
+    { label: "Địa điểm", filled: (user.preferred_locations?.length || 0) > 0 },
+    { label: "Loại hình CV", filled: (user.preferred_job_types?.length || 0) > 0 },
+  ];
+  const filled = fields.filter(f => f.filled).length;
+  const pct = Math.round((filled / fields.length) * 100);
+  const missing = fields.filter(f => !f.filled);
+
+  if (pct === 100) return null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center"><Zap size={20} /></div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-amber-900 text-sm">Hoàn thiện hồ sơ để nhận đề xuất chính xác hơn</h3>
+            <span className="text-xs font-black text-amber-700">{pct}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-amber-200 rounded-full mt-1.5 overflow-hidden">
+            <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      </div>
+      {missing.length > 0 && (
+        <p className="text-xs text-amber-700 font-medium ml-[52px]">
+          Còn thiếu: {missing.map(m => m.label).join(", ")}
+        </p>
+      )}
     </div>
   );
 }
@@ -492,29 +558,63 @@ export default function ProfilePage() {
 
         {tab === "jobs" && (
           <div className="animate-in fade-in">
+             {currentUser && <ProfileCompleteness user={currentUser} />}
              <div className="flex items-center justify-between mb-6">
-                <div><h2 className="text-2xl font-bold text-slate-900">Việc làm phù hợp</h2><p className="text-slate-500 text-sm mt-1">AI chấm điểm độ khớp với hồ sơ của bạn</p></div>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Việc làm phù hợp</h2>
+                  <p className="text-slate-500 text-sm mt-1">AI chấm điểm độ khớp dựa trên kỹ năng, kinh nghiệm, địa điểm và loại hình công việc</p>
+                </div>
                 <button onClick={fetchJobs} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 font-bold rounded-xl hover:bg-blue-100 transition"><RefreshCw size={16} className={loadingJobs?"animate-spin":""}/> Làm mới</button>
              </div>
              {loadingJobs ? (
-               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{Array.from({length:3}).map((_,i)=><div key={i} className="h-48 bg-slate-200 rounded-3xl animate-pulse"/>)}</div>
+               <div className="grid md:grid-cols-2 gap-6">{Array.from({length:4}).map((_,i)=><div key={i} className="h-56 bg-slate-200 rounded-3xl animate-pulse"/>)}</div>
              ) : recommendedJobs.length === 0 ? (
-               <div className="text-center py-12 text-slate-400">Không có gợi ý nào. Hãy thêm Kỹ năng vào Hồ sơ!</div>
+               <div className="text-center py-16 bg-white rounded-3xl border border-slate-200">
+                 <Briefcase size={48} className="mx-auto text-slate-300 mb-4" />
+                 <h3 className="text-lg font-bold text-slate-600 mb-2">Chưa có gợi ý việc làm</h3>
+                 <p className="text-slate-400 text-sm max-w-md mx-auto">Hãy bổ sung <strong>Kỹ năng</strong>, <strong>Cấp bậc kinh nghiệm</strong> và <strong>Địa điểm làm việc</strong> vào hồ sơ để nhận đề xuất phù hợp.</p>
+                 <button onClick={() => { setTab("profile"); setIsEditing(true); }} className="mt-4 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition inline-flex items-center gap-2">
+                   <Pencil size={14} /> Cập nhật hồ sơ ngay
+                 </button>
+               </div>
              ) : (
-               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+               <div className="grid md:grid-cols-2 gap-5">
                  {recommendedJobs.map(job => (
-                   <div key={job.id} className="bg-white border border-slate-200 p-6 rounded-3xl hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col justify-between">
+                   <div key={job.id} className={`bg-white border p-6 rounded-3xl hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col justify-between ${
+                     job.match_score >= 70 ? "border-emerald-200 ring-1 ring-emerald-100" : "border-slate-200"
+                   }`}>
                      <div>
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition">{job.title}</h3>
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition leading-tight flex-1 mr-3">{job.title}</h3>
                           <ScoreBadge score={job.match_score} />
                         </div>
-                        <p className="text-sm font-bold text-slate-500 mb-4">{job.company}</p>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {job.skills?.slice(0,3).map(s=><span key={s} className="text-xs px-2 py-1 bg-slate-100 rounded-lg font-bold text-slate-600">{s}</span>)}
+                        <p className="text-sm font-bold text-slate-500 mb-3">{job.company}</p>
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium mb-3">
+                          {job.location && (
+                            <span className="flex items-center gap-1"><MapPin size={12} className="text-slate-400" /> {job.location}</span>
+                          )}
+                          {job.job_type && (
+                            <span className="flex items-center gap-1"><Briefcase size={12} className="text-slate-400" /> {JOBTYPE_LABELS[job.job_type] || job.job_type}</span>
+                          )}
+                          {job.experience && (
+                            <span className="flex items-center gap-1"><Star size={12} className="text-slate-400" /> {LEVEL_LABELS[job.experience] || job.experience}</span>
+                          )}
+                          {formatSalary(job.salary_min, job.salary_max, job.salary_currency) && (
+                            <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                              {formatSalary(job.salary_min, job.salary_max, job.salary_currency)}
+                            </span>
+                          )}
                         </div>
+
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {job.skills?.slice(0, 5).map(s => <span key={s} className="text-xs px-2 py-1 bg-slate-100 rounded-lg font-bold text-slate-600">{s}</span>)}
+                          {(job.skills?.length || 0) > 5 && <span className="text-xs px-2 py-1 text-slate-400 font-medium">+{job.skills!.length - 5}</span>}
+                        </div>
+
+                        <MatchReasons reasons={job.match_reasons} />
                      </div>
-                     <a href={job.url} target="_blank" className="text-sm font-bold text-blue-600 flex items-center gap-1 hover:underline mt-2">Xem chi tiết <ExternalLink size={14}/></a>
+                     <a href={job.url} target="_blank" className="text-sm font-bold text-blue-600 flex items-center gap-1 hover:underline mt-4 pt-3 border-t border-slate-100">Xem chi tiết <ExternalLink size={14}/></a>
                    </div>
                  ))}
                </div>
@@ -524,30 +624,69 @@ export default function ProfilePage() {
 
         {tab === "scholarships" && (
           <div className="animate-in fade-in">
+             {currentUser && <ProfileCompleteness user={currentUser} />}
              <div className="flex items-center justify-between mb-6">
-                <div><h2 className="text-2xl font-bold text-slate-900">Học bổng phù hợp</h2><p className="text-slate-500 text-sm mt-1">Đề xuất dựa trên ngành học và sở thích</p></div>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Học bổng phù hợp</h2>
+                  <p className="text-slate-500 text-sm mt-1">Đề xuất dựa trên trình độ học vấn, ngành học, lĩnh vực quan tâm và địa điểm</p>
+                </div>
                 <button onClick={fetchScholarships} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-xl hover:bg-indigo-100 transition"><RefreshCw size={16} className={loadingScholarships?"animate-spin":""}/> Làm mới</button>
              </div>
              {loadingScholarships ? (
-               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{Array.from({length:3}).map((_,i)=><div key={i} className="h-48 bg-slate-200 rounded-3xl animate-pulse"/>)}</div>
+               <div className="grid md:grid-cols-2 gap-6">{Array.from({length:4}).map((_,i)=><div key={i} className="h-56 bg-slate-200 rounded-3xl animate-pulse"/>)}</div>
              ) : recommendedScholarships.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">Không có gợi ý học bổng nào. Hãy thêm Lĩnh vực quan tâm!</div>
+               <div className="text-center py-16 bg-white rounded-3xl border border-slate-200">
+                 <GraduationCap size={48} className="mx-auto text-slate-300 mb-4" />
+                 <h3 className="text-lg font-bold text-slate-600 mb-2">Chưa có gợi ý học bổng</h3>
+                 <p className="text-slate-400 text-sm max-w-md mx-auto">Hãy bổ sung <strong>Trình độ học vấn</strong>, <strong>Ngành học</strong> và <strong>Lĩnh vực quan tâm</strong> vào hồ sơ để nhận đề xuất phù hợp.</p>
+                 <button onClick={() => { setTab("profile"); setIsEditing(true); }} className="mt-4 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition inline-flex items-center gap-2">
+                   <Pencil size={14} /> Cập nhật hồ sơ ngay
+                 </button>
+               </div>
              ) : (
-               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+               <div className="grid md:grid-cols-2 gap-5">
                  {recommendedScholarships.map(s => (
-                   <div key={s.id} className="bg-white border border-slate-200 p-6 rounded-3xl hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col justify-between">
+                   <div key={s.id} className={`bg-white border p-6 rounded-3xl hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col justify-between ${
+                     s.match_score >= 70 ? "border-indigo-200 ring-1 ring-indigo-100" : "border-slate-200"
+                   }`}>
                      <div>
-                       <div className="flex justify-between items-start mb-4">
-                         <h3 className="font-bold text-lg text-slate-800 group-hover:text-indigo-600 transition">{s.title}</h3>
+                       <div className="flex justify-between items-start mb-3">
+                         <h3 className="font-bold text-lg text-slate-800 group-hover:text-indigo-600 transition leading-tight flex-1 mr-3">{s.title}</h3>
                          <ScoreBadge score={s.match_score} />
                        </div>
-                       <p className="text-sm font-bold text-slate-500 mb-4 flex items-center gap-1.5"><Award size={14}/> {s.organization}</p>
-                       <div className="flex flex-wrap gap-2 mb-4 text-xs font-bold">
-                         <span className="px-2 py-1 bg-slate-100 rounded-lg text-slate-600">{s.country}</span>
-                         <span className="px-2 py-1 bg-indigo-50 rounded-lg text-indigo-600 uppercase">{s.level}</span>
+                       <p className="text-sm font-bold text-slate-500 mb-3 flex items-center gap-1.5"><Award size={14}/> {s.organization}</p>
+
+                       <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium mb-3">
+                         {s.country && (
+                           <span className="flex items-center gap-1"><MapPin size={12} className="text-slate-400" /> {s.country}</span>
+                         )}
+                         {s.level && (
+                           <span className="flex items-center gap-1"><GraduationCap size={12} className="text-slate-400" /> {EDU_LABELS[s.level] || s.level}</span>
+                         )}
+                         {s.field && (
+                           <span className="flex items-center gap-1"><Star size={12} className="text-slate-400" /> {s.field}</span>
+                         )}
                        </div>
+
+                       <div className="flex flex-wrap gap-2 mb-2 text-xs font-bold">
+                         {s.coverage && (
+                           <span className={`px-2.5 py-1 rounded-lg ${
+                             s.coverage === "full" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-600"
+                           }`}>
+                             {s.coverage === "full" ? "Toàn phần" : s.coverage === "partial" ? "Bán phần" : s.coverage === "tuition_only" ? "Chỉ học phí" : s.coverage}
+                           </span>
+                         )}
+                         {s.amount && <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg border border-blue-100">{s.amount}</span>}
+                         {s.deadline && (
+                           <span className="px-2.5 py-1 bg-rose-50 text-rose-600 rounded-lg border border-rose-100 flex items-center gap-1">
+                             <Calendar size={10} /> Hạn: {new Date(s.deadline).toLocaleDateString("vi-VN")}
+                           </span>
+                         )}
+                       </div>
+
+                       <MatchReasons reasons={s.match_reasons} />
                      </div>
-                     <a href={s.url} target="_blank" className="text-sm font-bold text-indigo-600 flex items-center gap-1 hover:underline mt-2">Xem chi tiết <ExternalLink size={14}/></a>
+                     <a href={s.url} target="_blank" className="text-sm font-bold text-indigo-600 flex items-center gap-1 hover:underline mt-4 pt-3 border-t border-slate-100">Xem chi tiết <ExternalLink size={14}/></a>
                    </div>
                  ))}
                </div>
