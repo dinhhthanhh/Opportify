@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
+from enum import Enum
 from typing import List, Optional
 import uuid
 
@@ -13,14 +14,25 @@ router = APIRouter()
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
 
+class ExperienceLevel(str, Enum):
+    fresher = "fresher"
+    junior = "junior"
+    mid = "mid"
+    senior = "senior"
+
+class EducationLevel(str, Enum):
+    bachelor = "bachelor"
+    master = "master"
+    phd = "phd"
+
 class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     skills: Optional[List[str]] = None
     experience_years: Optional[int] = None
-    experience_level: Optional[str] = None
-    education_level: Optional[str] = None
+    experience_level: Optional[ExperienceLevel] = None
+    education_level: Optional[EducationLevel] = None
     education_field: Optional[str] = None
     university: Optional[str] = None
     preferred_locations: Optional[List[str]] = None
