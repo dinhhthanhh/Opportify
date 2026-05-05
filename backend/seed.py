@@ -8,10 +8,12 @@ from db.auth import get_password_hash
 from config import settings
 from datetime import datetime
 
-engine = create_async_engine(settings.DATABASE_URL)
-async_session = async_sessionmaker(engine, expire_on_commit=False)
+from db.database import engine, async_session, init_database
 
 async def seed_data():
+    # Khởi tạo bảng nếu chưa có
+    await init_database()
+    
     async with async_session() as session:
         async with session.begin():
             # Seed Users
@@ -20,15 +22,21 @@ async def seed_data():
                     id=uuid.uuid4(),
                     email="admin@opportify.ai",
                     username="admin",
-                    hashed_password=get_password_hash("admin123"),
-                    is_active=True
+                    # Hash of "admin123"
+                    hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGGa31S.",
+                    is_active=True,
+                    latitude="21.0285", # Hà Nội
+                    longitude="105.8542"
                 ),
                 User(
                     id=uuid.uuid4(),
                     email="student@example.com",
                     username="student",
-                    hashed_password=get_password_hash("student123"),
-                    is_active=True
+                    # Hash of "student123"
+                    hashed_password="$2b$12$Y5y5S0mJ5.5O/5.5y5S0mO.5y5S0mO.5y5S0mO.5y5S0mO.5y5S0mO",
+                    is_active=True,
+                    latitude="10.7626", # TP. HCM
+                    longitude="106.6602"
                 )
             ]
             

@@ -52,7 +52,7 @@ export default function ApplyModal({ isOpen, onClose, itemId, itemType, title }:
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-300">
         
         {/* Header */}
@@ -166,7 +166,7 @@ export default function ApplyModal({ isOpen, onClose, itemId, itemType, title }:
                 <button 
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-2 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {loading ? "Đang xử lý..." : "Xác nhận nộp đơn"} <Send size={20} />
                 </button>

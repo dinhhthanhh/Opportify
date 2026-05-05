@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, DateTime
+from sqlalchemy import Column, String, Text, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from db.database import Base
 from datetime import datetime
@@ -16,6 +16,9 @@ class Scholarship(Base):
     coverage = Column(String(50)) # full, partial, tuition_only
     amount = Column(String(255))
     deadline = Column(DateTime)
+    view_count = Column(Integer, default=0)
+    numeric_amount = Column(Integer, nullable=True) # Giá trị quy đổi ra số
+    competitiveness_score = Column(Integer, default=5) # 1-10
     description = Column(Text)
     requirements = Column(Text)
     benefits = Column(Text)

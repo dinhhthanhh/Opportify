@@ -58,7 +58,7 @@ function ScoreBadge({ score }: { score: number }) {
 
 function ProfileCard({ user }: { user: UserProfile }) {
   return (
-    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-2xl shadow-blue-600/30 mb-8">
+    <div className="bg-linear-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-2xl shadow-blue-600/30 mb-8">
       <div className="flex flex-col md:flex-row gap-6 items-start">
         <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 text-white shadow-inner backdrop-blur-sm">
           <UserCircle2 size={40} />
@@ -382,7 +382,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-slate-50 to-white">
       {/* Page header */}
       <div className="bg-white border-b border-slate-100 px-6 py-10">
         <div className="max-w-7xl mx-auto">

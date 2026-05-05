@@ -1,9 +1,18 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from db.database import get_db
 from models.job import Job
 from typing import Optional, List
+
+import uuid
+from datetime import datetime
+import math
+
+# Import helpers from recommend if needed, or re-implement here for self-containment
+from models.user import User
+from routers.recommend import _skills_overlap_score, _level_score, _location_score, _jobtype_score, _calculate_distance, _job_to_dict
 
 router = APIRouter()
 
@@ -31,6 +40,9 @@ async def get_jobs(
     salary_currency: Optional[str] = None,
     experience: Optional[str] = None,
     job_type: Optional[str] = None,
+    sort_by: str = Query("posted_at"),
+    order: str = Query("desc"),
+    user_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     def parse_csv(value: Optional[str]) -> List[str]:
@@ -92,9 +104,59 @@ async def get_jobs(
     # Execute paginated query
     query = query.limit(limit).offset((page - 1) * limit)
     result = await db.execute(query)
+    
+    # 1. Xử lý các tiêu chí sắp xếp thuần SQL (Lương, Ngày đăng, Hạn nộp, Lượt xem)
+    if sort_by == "salary":
+        query = query.order_by(Job.salary_max.desc() if order == "desc" else Job.salary_max.asc())
+    elif sort_by == "posted_at":
+        query = query.order_by(Job.posted_at.desc() if order == "desc" else Job.posted_at.asc())
+    elif sort_by == "deadline":
+        query = query.order_by(Job.deadline.desc() if order == "desc" else Job.deadline.asc())
+    elif sort_by == "popularity":
+        query = query.order_by(Job.view_count.desc() if order == "desc" else Job.view_count.asc())
+
+    # Lấy dữ liệu
+    result = await db.execute(query.limit(200)) # Giới hạn 200 để xử lý in-memory sorting cho AI/Distance
     jobs = result.scalars().all()
 
-    return {"results": jobs, "total": total}
+    # 2. Xử lý Sắp xếp nâng cao (Cần User Profile)
+    if (sort_by == "match_score" or sort_by == "distance") and user_id:
+        try:
+            uid = uuid.UUID(user_id)
+            user_res = await db.execute(select(User).where(User.id == uid))
+            user = user_res.scalar_one_or_none()
+            
+            if user:
+                scored_jobs = []
+                for job in jobs:
+                    score = 0
+                    if sort_by == "match_score":
+                        score = (
+                            _skills_overlap_score(user.skills, job.skills or [])
+                            + _level_score(user.experience_level, job.experience)
+                            + _location_score(user.preferred_locations, job.location)
+                            + _jobtype_score(user.preferred_job_types, job.job_type)
+                        )
+                    else: # distance
+                        score = _calculate_distance(user.latitude, user.longitude, job.latitude, job.longitude)
+                    
+                    scored_jobs.append((score, job))
+                
+                # Sắp xếp lại danh sách đã tính điểm
+                # match_score: desc, distance: asc (nếu order=desc của distance thì ngược lại)
+                is_reverse = (order == "desc") if sort_by == "match_score" else (order == "desc")
+                scored_jobs.sort(key=lambda x: x[0], reverse=is_reverse)
+                jobs = [x[1] for x in scored_jobs]
+        except Exception as e:
+            print(f"Sorting error: {e}")
+
+    # Phân trang in-memory sau khi sort
+    total = len(jobs)
+    start = (page - 1) * limit
+    end = start + limit
+    paginated_jobs = jobs[start:end]
+
+    return {"results": paginated_jobs, "total": total}
 
 @router.get("/{id}")
 async def get_job_detail(id: str, db: AsyncSession = Depends(get_db)):

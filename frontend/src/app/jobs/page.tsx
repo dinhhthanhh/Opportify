@@ -5,6 +5,8 @@ import ChatWidget from "@/components/chatbot/ChatWidget"
 import Pagination from "@/components/search/Pagination"
 import { api } from "@/lib/api"
 
+import SortDropdown from "@/components/search/SortDropdown"
+
 interface SearchParams {
   q?: string;
   location?: string;
@@ -14,6 +16,8 @@ interface SearchParams {
   job_type?: string;
   experience?: string;
   page?: string;
+  sort_by?: string; 
+  order?: string;
 }
 
 export default async function JobsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -44,6 +48,15 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     console.error("Failed to fetch jobs:", error)
   }
 
+  const sortOptions = [
+    { label: "Ngày đăng mới nhất", value: "posted_at", order: "desc" as const },
+    { label: "Mức lương cao nhất", value: "salary", order: "desc" as const },
+    { label: "Độ phù hợp AI", value: "match_score", order: "desc" as const },
+    { label: "Hạn nộp gần nhất", value: "deadline", order: "asc" as const },
+    { label: "Mức độ phổ biến", value: "popularity", order: "desc" as const },
+    { label: "Khoảng cách gần nhất", value: "distance", order: "asc" as const },
+  ]
+
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
       <div className="bg-gradient-to-r from-blue-700 to-indigo-800 pt-16 pb-24 px-4 shadow-inner">
@@ -62,13 +75,9 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
             salaryCurrency={salaryCurrency}
           />
           <div className="flex-1 mt-10 md:mt-0">
-            <div className="flex justify-between items-end mb-6">
+            <div className="flex justify-between items-center mb-6">
               <p className="text-slate-600 font-medium">Tìm thấy <span className="text-blue-600 font-bold text-lg">{total.toLocaleString()}</span> việc làm phù hợp</p>
-              <select className="text-sm bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 outline-none shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
-                <option>Mới nhất</option>
-                <option>Lương cao nhất</option>
-                <option>Phù hợp nhất (AI)</option>
-              </select>
+              <SortDropdown options={sortOptions} defaultValue="posted_at" />
             </div>
             
             {results.length > 0 ? (

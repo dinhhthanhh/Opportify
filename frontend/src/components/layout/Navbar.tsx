@@ -140,7 +140,7 @@ export default function Navbar() {
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center gap-3 p-1.5 pl-3 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100 transition active:scale-95"
                 >
-                  <div className="flex flex-col items-end hidden sm:flex">
+                  <div className="hidden sm:flex sm:flex-col sm:items-end">
                     <span className="text-xs font-black text-slate-900">{user.name}</span>
                     <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Premium Member</span>
                   </div>

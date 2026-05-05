@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Sparkles, Mail, Lock, User, ArrowRight, Chrome } from "lucide-react"
+import { Sparkles, Mail, Lock, User, ArrowRight } from "lucide-react"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({

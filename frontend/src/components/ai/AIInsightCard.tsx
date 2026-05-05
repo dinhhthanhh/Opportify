@@ -33,7 +33,7 @@ export default function AIInsightCard({ itemId, itemType }: AIInsightCardProps) 
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-2xl animate-pulse">
+      <div className="bg-linear-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-2xl animate-pulse">
         <div className="flex items-center gap-3 mb-6">
           <Brain className="animate-spin text-blue-200" />
           <span className="font-black text-xl">Opportify Insight đang phân tích...</span>
@@ -47,7 +47,7 @@ export default function AIInsightCard({ itemId, itemType }: AIInsightCardProps) 
   if (!insight) return null
 
   return (
-    <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-500/40 border border-indigo-400/20 relative overflow-hidden group">
+    <div className="bg-linear-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-500/40 border border-indigo-400/20 relative overflow-hidden group">
       {/* Decorative circles */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-colors"></div>
       

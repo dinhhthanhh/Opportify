@@ -1,5 +1,6 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 from db.database import Base
 from config import settings
 import models.application

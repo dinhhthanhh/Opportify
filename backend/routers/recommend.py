@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 import uuid
+from datetime import datetime
+import math
 
 from db.database import get_db
 from models.user import User
@@ -96,6 +98,22 @@ def _edu_scholarship_score(user_edu: str | None, scholarship_level: str | None) 
     return 0.0
 
 
+def _calculate_distance(lat1, lon1, lat2, lon2):
+    """Haversine formula để tính khoảng cách giữa 2 điểm (km)."""
+    if not all([lat1, lon1, lat2, lon2]):
+        return 999999.0
+    try:
+        lat1, lon1, lat2, lon2 = map(float, [lat1, lon1, lat2, lon2])
+        R = 6371  # Bán kính Trái đất
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
+    except:
+        return 999999.0
+
+
 def _job_to_dict(job: Job, score: float) -> dict:
     return {
         "id": str(job.id),
@@ -151,6 +169,8 @@ async def _get_user(user_id: str, db: AsyncSession) -> User:
 async def recommend_jobs(
     user_id: str = Query(..., description="UUID của user muốn lấy gợi ý"),
     limit: int = Query(10, le=50),
+    sort_by: str = Query("match_score", description="Sắp xếp theo: match_score, salary, posted_at, deadline, popularity, distance"),
+    order: str = Query("desc", description="Thứ tự: asc, desc"),
     db: AsyncSession = Depends(get_db),
 ):
     """Gợi ý việc làm cá nhân hóa dựa trên hồ sơ năng lực."""
@@ -169,7 +189,20 @@ async def recommend_jobs(
         )
         scored.append((score, job))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
+    # Sắp xếp bổ sung
+    if sort_by == "salary":
+        scored.sort(key=lambda x: (x[1].salary_max or 0), reverse=(order == "desc"))
+    elif sort_by == "posted_at":
+        scored.sort(key=lambda x: (x[1].posted_at or datetime.min), reverse=(order == "desc"))
+    elif sort_by == "deadline":
+        scored.sort(key=lambda x: (x[1].deadline or datetime.max), reverse=(order == "desc"))
+    elif sort_by == "popularity":
+        scored.sort(key=lambda x: (x[1].view_count or 0), reverse=(order == "desc"))
+    elif sort_by == "distance":
+        scored.sort(key=lambda x: _calculate_distance(user.latitude, user.longitude, x[1].latitude, x[1].longitude), reverse=(order == "desc"))
+    else:  # default match_score
+        scored.sort(key=lambda x: x[0], reverse=(order == "desc"))
+
     top = scored[:limit]
 
     return {
@@ -185,6 +218,8 @@ async def recommend_jobs(
 async def recommend_scholarships(
     user_id: str = Query(..., description="UUID của user muốn lấy gợi ý"),
     limit: int = Query(10, le=50),
+    sort_by: str = Query("match_score", description="Sắp xếp theo: match_score, deadline, value, posted_at, competitiveness"),
+    order: str = Query("desc", description="Thứ tự: asc, desc"),
     db: AsyncSession = Depends(get_db),
 ):
     """Gợi ý học bổng cá nhân hóa dựa trên hồ sơ."""
@@ -216,7 +251,18 @@ async def recommend_scholarships(
         score = edu_score + field_score + country_score
         scored.append((score, s))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
+    # Sắp xếp bổ sung
+    if sort_by == "deadline":
+        scored.sort(key=lambda x: (x[1].deadline or datetime.max), reverse=(order == "desc"))
+    elif sort_by == "value":
+        scored.sort(key=lambda x: (x[1].numeric_amount or 0), reverse=(order == "desc"))
+    elif sort_by == "posted_at":
+        scored.sort(key=lambda x: (x[1].created_at or datetime.min), reverse=(order == "desc"))
+    elif sort_by == "competitiveness":
+        scored.sort(key=lambda x: (x[1].competitiveness_score or 5), reverse=(order == "desc"))
+    else:  # default match_score
+        scored.sort(key=lambda x: x[0], reverse=(order == "desc"))
+
     top = scored[:limit]
 
     return {
