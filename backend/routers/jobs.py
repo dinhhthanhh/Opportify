@@ -12,7 +12,7 @@ import math
 
 # Import helpers from recommend if needed, or re-implement here for self-containment
 from models.user import User
-from routers.recommend import _skills_overlap_score, _level_score, _location_score, _jobtype_score, _calculate_distance, _job_to_dict
+from routers.recommend import _skills_overlap_score, _level_score, _location_score, _jobtype_score, _job_to_dict
 
 router = APIRouter()
 
@@ -119,33 +119,24 @@ async def get_jobs(
     result = await db.execute(query.limit(200)) # Giới hạn 200 để xử lý in-memory sorting cho AI/Distance
     jobs = result.scalars().all()
 
-    # 2. Xử lý Sắp xếp nâng cao (Cần User Profile)
-    if (sort_by == "match_score" or sort_by == "distance") and user_id:
+    # 2. Xử lý Sắp xếp nâng cao theo match_score (Cần User Profile)
+    if sort_by == "match_score" and user_id:
         try:
             uid = uuid.UUID(user_id)
             user_res = await db.execute(select(User).where(User.id == uid))
             user = user_res.scalar_one_or_none()
-            
+
             if user:
                 scored_jobs = []
                 for job in jobs:
-                    score = 0
-                    if sort_by == "match_score":
-                        score = (
-                            _skills_overlap_score(user.skills, job.skills or [])
-                            + _level_score(user.experience_level, job.experience)
-                            + _location_score(user.preferred_locations, job.location)
-                            + _jobtype_score(user.preferred_job_types, job.job_type)
-                        )
-                    else: # distance
-                        score = _calculate_distance(user.latitude, user.longitude, job.latitude, job.longitude)
-                    
+                    skills_score, _ = _skills_overlap_score(user.skills, job.skills or [])
+                    lvl_score, _ = _level_score(user.experience_level, job.experience)
+                    loc_score, _ = _location_score(user.preferred_locations, job.location)
+                    jt_score, _ = _jobtype_score(user.preferred_job_types, job.job_type)
+                    score = skills_score + lvl_score + loc_score + jt_score
                     scored_jobs.append((score, job))
-                
-                # Sắp xếp lại danh sách đã tính điểm
-                # match_score: desc, distance: asc (nếu order=desc của distance thì ngược lại)
-                is_reverse = (order == "desc") if sort_by == "match_score" else (order == "desc")
-                scored_jobs.sort(key=lambda x: x[0], reverse=is_reverse)
+
+                scored_jobs.sort(key=lambda x: x[0], reverse=(order == "desc"))
                 jobs = [x[1] for x in scored_jobs]
         except Exception as e:
             print(f"Sorting error: {e}")
