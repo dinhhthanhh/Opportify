@@ -88,10 +88,12 @@ export interface UserProfile {
 
 export interface RecommendedJob extends Job {
   match_score: number
+  match_reasons: string[]
 }
 
 export interface RecommendedScholarship extends Scholarship {
   match_score: number
+  match_reasons: string[]
 }
 
 export interface RecommendResponse<T> {
