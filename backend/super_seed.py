@@ -7,7 +7,13 @@ from models.scholarship import Scholarship
 from config import settings
 from datetime import datetime, timedelta
 
-engine = create_async_engine(settings.DATABASE_URL)
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    connect_args={
+        "prepared_statement_cache_size": 0,
+        "statement_cache_size": 0
+    }
+)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 JOB_DESCRIPTIONS = [
