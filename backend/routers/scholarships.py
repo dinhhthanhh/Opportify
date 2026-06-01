@@ -98,7 +98,7 @@ async def get_scholarships(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid deadline_to date")
         
-    # Count total for pagination
+    # Count total before applying pagination so every page reports the same total.
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar()
@@ -113,7 +113,7 @@ async def get_scholarships(
     elif sort_by == "competitiveness":
         query = query.order_by(Scholarship.competitiveness_score.desc() if order == "desc" else Scholarship.competitiveness_score.asc())
 
-    result = await db.execute(query.limit(200))
+    result = await db.execute(query)
     items = result.scalars().all()
 
     # 2. Advanced AI Sorting (Match Score)
@@ -144,7 +144,6 @@ async def get_scholarships(
             pass
 
     # Pagination
-    total = len(items)
     start = (page - 1) * limit
     paginated_items = items[start:start+limit]
     

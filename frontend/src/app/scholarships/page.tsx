@@ -9,6 +9,8 @@ import { GraduationCap } from "lucide-react"
 
 import SortDropdown from "@/components/search/SortDropdown"
 
+export const dynamic = "force-dynamic"
+
 interface SearchParams {
   q?: string;
   country?: string;
@@ -59,7 +61,7 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-6 -mt-12">
+      <div className="max-w-7xl mx-auto px-6 pt-12">
         <div className="flex flex-col lg:flex-row gap-10">
           {/* Filters */}
           <div className="w-full lg:w-80 shrink-0">
@@ -68,7 +70,7 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
 
           <div className="flex-1">
             <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <p className="text-slate-500 font-bold ml-2">Tìm thấy <span className="text-indigo-600">{total}</span> học bổng phù hợp</p>
+              <p className="text-slate-900 font-extrabold ml-2">Tìm thấy <span className="text-indigo-700 text-xl font-black">{total}</span> học bổng phù hợp</p>
               <SortDropdown options={sortOptions} defaultValue="deadline" />
             </div>
             
