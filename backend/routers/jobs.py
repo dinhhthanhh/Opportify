@@ -96,15 +96,11 @@ async def get_jobs(
     if job_type_list:
         query = query.where(func.lower(Job.job_type).in_(job_type_list))
         
-    # Count total for pagination
+    # Count total before applying pagination so every page reports the same total.
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
-    # Execute paginated query
-    query = query.limit(limit).offset((page - 1) * limit)
-    result = await db.execute(query)
-    
+
     # 1. Xử lý các tiêu chí sắp xếp thuần SQL (Lương, Ngày đăng, Hạn nộp, Lượt xem)
     if sort_by == "salary":
         query = query.order_by(Job.salary_max.desc() if order == "desc" else Job.salary_max.asc())
@@ -116,7 +112,7 @@ async def get_jobs(
         query = query.order_by(Job.view_count.desc() if order == "desc" else Job.view_count.asc())
 
     # Lấy dữ liệu
-    result = await db.execute(query.limit(200)) # Giới hạn 200 để xử lý in-memory sorting cho AI/Distance
+    result = await db.execute(query)
     jobs = result.scalars().all()
 
     # 2. Xử lý Sắp xếp nâng cao theo match_score (Cần User Profile)
@@ -142,7 +138,6 @@ async def get_jobs(
             print(f"Sorting error: {e}")
 
     # Phân trang in-memory sau khi sort
-    total = len(jobs)
     start = (page - 1) * limit
     end = start + limit
     paginated_jobs = jobs[start:end]

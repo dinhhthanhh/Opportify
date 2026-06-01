@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, User, LogOut, ChevronDown, Bell, FileText, Briefcase, UserCircle2, Settings } from "lucide-react";
-import { api } from "@/lib/api";
+import { API_URL, api } from "@/lib/api";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -34,7 +34,7 @@ export default function Navbar() {
         }
 
         // Fetch notifications
-        const res = await fetch("http://localhost:8000/api/v1/applications/notifications");
+        const res = await fetch(`${API_URL}/api/v1/applications/notifications`);
         const data = await res.json();
         setNotifications(Array.isArray(data) ? data : []);
 

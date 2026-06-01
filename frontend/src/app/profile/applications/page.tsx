@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Briefcase, Calendar, CheckCircle2, Clock, XCircle, Edit3, ChevronRight, MapPin, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
+import { API_URL } from "@/lib/api"
 
 export default function ApplicationsPage() {
   const [apps, setApps] = useState<any[]>([])
@@ -10,7 +11,7 @@ export default function ApplicationsPage() {
   const [editingApp, setEditingApp] = useState<any>(null)
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/v1/applications/my")
+    fetch(`${API_URL}/api/v1/applications/my`)
       .then(res => res.json())
       .then(data => {
         setApps(data)

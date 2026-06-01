@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { X, Send, CheckCircle2, Upload, FileText, User } from "lucide-react"
+import { API_URL } from "@/lib/api"
 
 interface ApplyModalProps {
   isOpen: boolean
@@ -38,7 +39,7 @@ export default function ApplyModal({ isOpen, onClose, itemId, itemType, title }:
     data.append("cover_letter", formData.coverLetter)
     
     try {
-      await fetch("http://localhost:8000/api/v1/applications/apply", {
+      await fetch(`${API_URL}/api/v1/applications/apply`, {
         method: "POST",
         body: data
       })

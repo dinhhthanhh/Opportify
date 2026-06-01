@@ -43,6 +43,8 @@ Lô trình phát triển bền vững với hơn 10 năm kinh nghiệm trong lĩ
 """
 
 sources = ["opportify", "crawler", "seed"]
+JOB_SAMPLE_COUNT = 327
+SCHOLARSHIP_SAMPLE_COUNT = 194
 
 SCHOLARSHIP_DESCRIPTION = "Chương trình học bổng uy tín nhằm hỗ trợ các sinh viên tài năng theo đuổi đam mê nghiên cứu và học tập tại các trường đại học hàng đầu thế giới."
 
@@ -77,11 +79,11 @@ def generate_job_data():
         "Sales Executive", "Business Analyst", "Human Resources Manager", "Accountant"
     ]
     companies = ["VNG Corporation", "FPT Software", "Viettel Group", "Grab", "Shopee", "Tiki", "VinAI", "Momo"]
-    locations = ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Singapore", "Remote"]
+    locations = ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Singapore"]
     skills_pool = ["Python", "JavaScript", "React", "Node.js", "SQL", "Docker", "AWS", "Java", "Go", "TypeScript"]
     
     jobs = []
-    for i in range(100):
+    for i in range(JOB_SAMPLE_COUNT):
         salary_min = random.randint(15, 60) * 1000000
         salary_max = salary_min + random.randint(10, 40) * 1000000
         
@@ -107,7 +109,7 @@ def generate_job_data():
             industry=random.choice(["IT", "Finance", "Healthcare", "E-commerce"]),
             working_time="Thứ 2 - Thứ 6",
             skills=random.sample(skills_pool, k=random.randint(3, 6)),
-            job_type=random.choice(["fulltime", "parttime", "remote"]),
+            job_type=random.choice(["fulltime", "parttime", "internship"]),
             experience=random.choice(["fresher", "junior", "mid", "senior"]),
             url=f"https://opportify.ai/jobs/internal-{uuid.uuid4()}",
             source=random.choice(sources),
@@ -127,7 +129,7 @@ def generate_scholarship_data():
     fields = ["Engineering", "Computer Science", "Business", "Medicine", "Arts"]
 
     scholarships = []
-    for i in range(50):
+    for i in range(SCHOLARSHIP_SAMPLE_COUNT):
         numeric_amt = random.randint(500, 5000)
         scholarships.append(Scholarship(
             id=uuid.uuid4(),
@@ -166,7 +168,7 @@ async def seed_data():
             scholarships = generate_scholarship_data()
             for item in jobs + scholarships:
                 session.add(item)
-        print(f"Đã nạp thành công dữ liệu mẫu phong phú!")
+        print(f"Đã nạp thành công {len(jobs) + len(scholarships)} dữ liệu mẫu ({len(jobs)} jobs, {len(scholarships)} scholarships)!")
 
 if __name__ == "__main__":
     asyncio.run(seed_data())

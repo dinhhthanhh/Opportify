@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Sparkles, Brain, Target, AlertCircle, Lightbulb, Zap } from "lucide-react"
+import { API_URL } from "@/lib/api"
 
 interface AIInsightCardProps {
   itemId: string
@@ -15,7 +16,7 @@ export default function AIInsightCard({ itemId, itemType }: AIInsightCardProps) 
   useEffect(() => {
     async function fetchInsight() {
       try {
-        const response = await fetch("http://localhost:8000/api/v1/ai/insight", {
+        const response = await fetch(`${API_URL}/api/v1/ai/insight`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ item_id: itemId, item_type: itemType })

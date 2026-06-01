@@ -22,6 +22,18 @@ function formatSalary(min?: number, max?: number, currency = "VND") {
   return min ? `Từ ${fmt(min)}` : `Đến ${fmt(max!)}`
 }
 
+const jobTypeStyles: Record<string, string> = {
+  fulltime: "bg-sky-100 text-sky-700 border-sky-200",
+  parttime: "bg-amber-100 text-amber-800 border-amber-200",
+  internship: "bg-emerald-100 text-emerald-700 border-emerald-200",
+}
+
+const jobTypeLabels: Record<string, string> = {
+  fulltime: "Toàn thời gian",
+  parttime: "Bán thời gian",
+  internship: "Thực tập",
+}
+
 export default function JobDetailPage({ params }: PageProps) {
   const [job, setJob] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -77,9 +89,11 @@ export default function JobDetailPage({ params }: PageProps) {
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3 mb-6">
-                <span className="px-4 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[11px] font-black uppercase tracking-wider">
-                  {job.job_type || "Full-time"}
-                </span>
+                {job.job_type !== "remote" && (
+                  <span className={`px-4 py-1.5 rounded-xl border text-[11px] font-black uppercase tracking-wider ${jobTypeStyles[job.job_type] || "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                    {jobTypeLabels[job.job_type] || "Full-time"}
+                  </span>
+                )}
                 <span className="flex items-center gap-1.5 text-slate-400 text-sm font-bold">
                   <Clock size={16} /> {job.posted_at ? new Date(job.posted_at).toLocaleDateString('vi-VN') : 'Mới cập nhật'}
                 </span>
@@ -187,7 +201,7 @@ export default function JobDetailPage({ params }: PageProps) {
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Kỹ năng chuyên môn</h3>
                 <div className="flex flex-wrap gap-3">
                   {job.skills?.map((skill: string) => (
-                    <span key={skill} className="px-5 py-3 bg-slate-50 text-slate-700 font-bold rounded-2xl border border-slate-200">
+                    <span key={skill} className="px-5 py-3 bg-violet-50 text-violet-700 font-bold rounded-2xl border border-violet-100">
                       {skill}
                     </span>
                   ))}

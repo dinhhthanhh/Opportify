@@ -11,6 +11,18 @@ function formatSalary(min?: number, max?: number, currency = "VND") {
   return min ? `Từ ${fmt(min)}` : `Đến ${fmt(max!)}`
 }
 
+const jobTypeStyles: Record<string, string> = {
+  fulltime: "bg-sky-100 text-sky-700 border-sky-200",
+  parttime: "bg-amber-100 text-amber-800 border-amber-200",
+  internship: "bg-emerald-100 text-emerald-700 border-emerald-200",
+}
+
+const jobTypeLabels: Record<string, string> = {
+  fulltime: "Toàn thời gian",
+  parttime: "Bán thời gian",
+  internship: "Thực tập",
+}
+
 export default function JobCard({ job }: { job: Job }) {
   return (
     <Link href={`/jobs/${job.id}`} className="block group">
@@ -32,35 +44,31 @@ export default function JobCard({ job }: { job: Job }) {
         
         <div className="flex flex-wrap gap-3 text-sm text-slate-600 mb-4">
           {job.location && (
-            <span className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
-              <MapPin size={14} className="text-blue-500" />
+            <span className="flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 text-indigo-700">
+              <MapPin size={14} className="text-indigo-500" />
               {job.location}
             </span>
           )}
-          <span className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
-            <DollarSign size={14} className="text-green-500" />
+          <span className="flex items-center gap-1.5 bg-teal-50 px-2.5 py-1 rounded-md border border-teal-100 text-teal-700">
+            <DollarSign size={14} className="text-teal-500" />
             <span className="font-medium">{formatSalary(job.salary_min, job.salary_max, job.salary_currency)}</span>
           </span>
-          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${
-            job.job_type === "remote" ? "bg-purple-100 text-purple-700 border border-purple-200" :
-            job.job_type === "fulltime" ? "bg-blue-100 text-blue-700 border border-blue-200" :
-            "bg-slate-100 text-slate-600 border border-slate-200"
-          }`}>
-            {job.job_type === "remote" ? "Remote" : 
-             job.job_type === "fulltime" ? "Toàn thời gian" :
-             job.job_type === "parttime" ? "Bán thời gian" : "Thực tập"}
-          </span>
+          {job.job_type !== "remote" && (
+            <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${jobTypeStyles[job.job_type] || "bg-slate-100 text-slate-700 border-slate-200"}`}>
+              {jobTypeLabels[job.job_type] || job.job_type}
+            </span>
+          )}
         </div>
         
         {job.skills.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {job.skills.slice(0, 5).map(skill => (
-              <span key={skill} className="text-xs font-medium bg-slate-100/80 hover:bg-slate-200/80 text-slate-600 px-2.5 py-1 rounded-md transition-colors cursor-default">
+              <span key={skill} className="text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-100 px-2.5 py-1 rounded-md transition-colors cursor-default">
                 {skill}
               </span>
             ))}
             {job.skills.length > 5 && (
-              <span className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-md">+{job.skills.length - 5}</span>
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">+{job.skills.length - 5}</span>
             )}
           </div>
         )}

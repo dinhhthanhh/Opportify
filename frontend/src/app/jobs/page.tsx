@@ -7,6 +7,8 @@ import { api } from "@/lib/api"
 
 import SortDropdown from "@/components/search/SortDropdown"
 
+export const dynamic = "force-dynamic"
+
 interface SearchParams {
   q?: string;
   location?: string;
@@ -66,17 +68,19 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         </div>
       </div>
       
-      <div className="max-w-6xl mx-auto px-4 -mt-10">
+      <div className="max-w-7xl mx-auto px-6 pt-12">
         <div className="flex flex-col md:flex-row gap-8">
           <FilterPanel
-            className="w-full md:w-72 shrink-0 z-10"
+            className="w-full md:w-72 shrink-0 md:sticky md:top-24"
             salaryMinBound={salaryMinBound}
             salaryMaxBound={salaryMaxBound}
             salaryCurrency={salaryCurrency}
           />
-          <div className="flex-1 mt-10 md:mt-0">
-            <div className="flex justify-between items-center mb-6">
-              <p className="text-slate-600 font-medium">Tìm thấy <span className="text-blue-600 font-bold text-lg">{total.toLocaleString()}</span> việc làm phù hợp</p>
+          <div className="flex-1">
+            <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+              <p className="text-slate-900 font-extrabold ml-2">
+                Tìm thấy <span className="text-blue-700 font-black text-xl">{total.toLocaleString()}</span> việc làm phù hợp
+              </p>
               <SortDropdown options={sortOptions} defaultValue="posted_at" />
             </div>
             

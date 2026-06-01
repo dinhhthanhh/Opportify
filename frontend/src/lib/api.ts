@@ -1,6 +1,6 @@
 import { JobsResponse, Job, ScholarshipsResponse, SearchResults, Message, Scholarship, UserProfile, RecommendResponse, RecommendedJob, RecommendedScholarship} from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = new Headers(options?.headers);
@@ -16,7 +16,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     }
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers, cache: "no-store" });
   if (!res.ok) throw new Error(`API Error: ${res.status}`);
   return res.json();
 }
