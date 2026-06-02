@@ -75,7 +75,15 @@ async def get_scholarships(
     query = select(Scholarship)
     
     if q:
-        query = query.where(Scholarship.title.ilike(f"%{q}%") | Scholarship.description.ilike(f"%{q}%"))
+        query = query.where(
+            or_(
+                Scholarship.title.ilike(f"%{q}%"),
+                Scholarship.description.ilike(f"%{q}%"),
+                Scholarship.country.ilike(f"%{q}%"),
+                Scholarship.field.ilike(f"%{q}%"),
+                Scholarship.level.ilike(f"%{q}%")
+            )
+        )
     if country:
         query = query.where(Scholarship.country.ilike(f"%{country}%"))
     if level:
@@ -105,7 +113,16 @@ async def get_scholarships(
     
     # 1. SQL Sorting
     if sort_by == "deadline":
-        query = query.order_by(Scholarship.deadline.desc() if order == "desc" else Scholarship.deadline.asc())
+        from sqlalchemy import case
+        current_time = datetime.utcnow()
+        query = query.order_by(
+            case(
+                (Scholarship.deadline.is_(None), 0),
+                (Scholarship.deadline >= current_time, 0),
+                else_=1
+            ).asc(),
+            Scholarship.deadline.desc() if order == "desc" else Scholarship.deadline.asc()
+        )
     elif sort_by == "value":
         query = query.order_by(Scholarship.numeric_amount.desc() if order == "desc" else Scholarship.numeric_amount.asc())
     elif sort_by == "posted_at":

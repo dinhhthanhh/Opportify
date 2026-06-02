@@ -164,12 +164,6 @@ export default function Navbar() {
                     <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition">
                       <Sparkles size={18} className="text-amber-400" /> Hồ sơ năng lực
                     </Link>
-                    <Link href="/profile/cv" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition">
-                      <FileText size={18} className="text-blue-500" /> Tạo CV
-                    </Link>
-                    <Link href="/profile/applications" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition">
-                      <Briefcase size={18} className="text-emerald-500" /> Quản lý ứng tuyển
-                    </Link>
                     <div className="h-px bg-slate-50 my-2" />
                     <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition">
                       <LogOut size={18} /> Đăng xuất

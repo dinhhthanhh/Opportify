@@ -731,7 +731,7 @@ services:
 
   backend:
     build: ./backend
-    ports: ["8000:8000"]
+    ports: ["8001:8001"]
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres/jobscholar
       REDIS_URL: redis://redis:6379/0
@@ -739,7 +739,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     depends_on: [postgres, redis, meilisearch]
     volumes: [./backend:/app]
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
   worker:
     build: ./backend
@@ -757,7 +757,7 @@ services:
     build: ./frontend
     ports: ["3000:3000"]
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8001
     depends_on: [backend]
 
 volumes:
@@ -782,7 +782,7 @@ SMTP_USER=your@gmail.com
 SMTP_PASS=app-password
 
 # frontend/.env.local
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8001
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```

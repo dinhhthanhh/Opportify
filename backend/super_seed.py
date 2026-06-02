@@ -79,7 +79,7 @@ def generate_job_data():
         "Sales Executive", "Business Analyst", "Human Resources Manager", "Accountant"
     ]
     companies = ["VNG Corporation", "FPT Software", "Viettel Group", "Grab", "Shopee", "Tiki", "VinAI", "Momo"]
-    locations = ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Singapore"]
+    locations = ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Singapore", "Remote"]
     skills_pool = ["Python", "JavaScript", "React", "Node.js", "SQL", "Docker", "AWS", "Java", "Go", "TypeScript"]
     
     jobs = []

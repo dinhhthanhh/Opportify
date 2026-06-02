@@ -20,6 +20,7 @@ export interface Job {
   url: string
   source: string
   posted_at: string
+  deadline?: string
   match_score?: number
 }
 

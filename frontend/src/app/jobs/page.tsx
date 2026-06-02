@@ -53,10 +53,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const sortOptions = [
     { label: "Ngày đăng mới nhất", value: "posted_at", order: "desc" as const },
     { label: "Mức lương cao nhất", value: "salary", order: "desc" as const },
-    { label: "Độ phù hợp AI", value: "match_score", order: "desc" as const },
     { label: "Hạn nộp gần nhất", value: "deadline", order: "asc" as const },
-    { label: "Mức độ phổ biến", value: "popularity", order: "desc" as const },
-    { label: "Khoảng cách gần nhất", value: "distance", order: "asc" as const },
   ]
 
   return (
@@ -99,7 +96,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                     <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                   </div>
                   <h3 className="text-xl font-bold text-slate-800 mb-3">Chưa có kết quả</h3>
-                  <p className="leading-relaxed">Xin lỗi, hiện tại hệ thống chưa trả về danh sách việc làm.<br/>Có thể Backend API chưa phản hồi, hãy đảm bảo Backend đang chạy ở localhost:8000.</p>
+                  <p className="leading-relaxed">Xin lỗi, hiện tại hệ thống chưa trả về danh sách việc làm.<br/>Có thể Backend API chưa phản hồi, hãy đảm bảo Backend đang chạy ở localhost:8001.</p>
                </div>
             )}
           </div>

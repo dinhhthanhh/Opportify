@@ -40,9 +40,7 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
   const sortOptions = [
     { label: "Hạn nộp (Gần nhất)", value: "deadline", order: "asc" as const },
     { label: "Giá trị học bổng cao nhất", value: "value", order: "desc" as const },
-    { label: "Độ phù hợp AI", value: "match_score", order: "desc" as const },
     { label: "Ngày đăng mới nhất", value: "posted_at", order: "desc" as const },
-    { label: "Độ cạnh tranh thấp nhất", value: "competitiveness", order: "asc" as const },
   ]
 
   return (

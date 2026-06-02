@@ -81,10 +81,10 @@ python seed_profiles.py
 Khởi động API:
 
 ```powershell
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 8001
 ```
 
-Backend chạy tại `http://localhost:8000`.
+Backend chạy tại `http://localhost:8001`.
 
 ## Chạy frontend
 
@@ -98,10 +98,10 @@ npm run dev
 
 Frontend chạy tại `http://localhost:3000`.
 
-Mặc định frontend gọi backend qua `http://127.0.0.1:8000`. Nếu cần đổi API URL, tạo file `frontend/.env.local`:
+Mặc định frontend gọi backend qua `http://127.0.0.1:8001`. Nếu cần đổi API URL, tạo file `frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8001
 ```
 
 ## Luồng chạy khuyến nghị
@@ -110,7 +110,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 2. Cài backend dependencies bằng `pip install -r requirements.txt`.
 3. Chạy `python init_db.py` nếu database chưa có schema.
 4. Chạy `python seed_profiles.py`.
-5. Chạy backend bằng `uvicorn main:app --reload --port 8000`.
+5. Chạy backend bằng `uvicorn main:app --reload --port 8001`.
 6. Cài frontend dependencies bằng `npm install`.
 7. Chạy frontend bằng `npm run dev`.
 8. Mở `http://localhost:3000`.
@@ -125,5 +125,5 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 - **`tenant/user ... not found`:** `DATABASE_URL` sai project ref, username, password hoặc Supabase project chưa được khởi động lại.
 - **`DuplicatePreparedStatementError`:** Đang dùng Supabase Pooler nhưng engine chưa tắt prepared statement cache.
-- **Frontend không có dữ liệu:** Đảm bảo backend đang chạy tại `localhost:8000` và `NEXT_PUBLIC_API_URL` đúng.
+- **Frontend không có dữ liệu:** Đảm bảo backend đang chạy tại `localhost:8001` và `NEXT_PUBLIC_API_URL` đúng.
 - **Seed báo đã tồn tại:** Dữ liệu mẫu đã có trong database, có thể tiếp tục chạy app.

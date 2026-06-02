@@ -107,7 +107,16 @@ async def get_jobs(
     elif sort_by == "posted_at":
         query = query.order_by(Job.posted_at.desc() if order == "desc" else Job.posted_at.asc())
     elif sort_by == "deadline":
-        query = query.order_by(Job.deadline.desc() if order == "desc" else Job.deadline.asc())
+        from sqlalchemy import case
+        current_time = datetime.utcnow()
+        query = query.order_by(
+            case(
+                (Job.deadline.is_(None), 0),
+                (Job.deadline >= current_time, 0),
+                else_=1
+            ).asc(),
+            Job.deadline.desc() if order == "desc" else Job.deadline.asc()
+        )
     elif sort_by == "popularity":
         query = query.order_by(Job.view_count.desc() if order == "desc" else Job.view_count.asc())
 
