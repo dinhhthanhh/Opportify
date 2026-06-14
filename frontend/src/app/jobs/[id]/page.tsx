@@ -8,6 +8,7 @@ import { notFound } from "next/navigation"
 import AIInsightCard from "@/components/ai/AIInsightCard"
 import ApplyModal from "@/components/jobs/ApplyModal"
 import { useState, useEffect } from "react"
+import { getSavedUserLocation, HUST_LOCATION, USER_LOCATION_KEY } from "@/components/location/UserLocationContext"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -119,10 +120,10 @@ function CountdownTimer({ deadline }: { deadline?: string }) {
 
 function ApplicationRoadmap() {
   const steps = [
-    { title: "Nộp hồ sơ", desc: "CV của bạn sẽ được AI phân tích và chuyển đến nhà tuyển dụng trực tuyến." },
-    { title: "Đánh giá năng lực / Technical Test", desc: "Hoàn thành bài thi chuyên môn nhỏ để chứng thực kinh nghiệm của bạn." },
-    { title: "Phỏng vấn chuyên sâu", desc: "Trò chuyện trực tiếp cùng Line Manager để hiểu rõ thêm về định hướng công việc." },
-    { title: "Nhận thư mời nhận việc (Offer)", desc: "Trở thành thành viên chính thức và hưởng toàn bộ phúc lợi hấp dẫn." }
+    { title: "Nộp hồ sơ", desc: "Hồ sơ của bạn sẽ được chuyển đến nhà tuyển dụng để xem xét." },
+    { title: "Đánh giá năng lực", desc: "Hoàn thành bài kiểm tra chuyên môn nhỏ để chứng minh kinh nghiệm của bạn." },
+    { title: "Phỏng vấn chuyên sâu", desc: "Trò chuyện trực tiếp cùng quản lý trực tiếp để hiểu rõ hơn về công việc." },
+    { title: "Nhận thư mời nhận việc", desc: "Trở thành thành viên chính thức và hưởng toàn bộ phúc lợi hấp dẫn." }
   ];
 
   return (
@@ -157,6 +158,24 @@ export default function JobDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true)
   const [isApplyOpen, setIsApplyOpen] = useState(false)
   const [id, setId] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const [userLoc, setUserLoc] = useState(HUST_LOCATION)
+
+  // Lấy vị trí người dùng (đã lưu hoặc hỏi quyền) để chỉ đường tới công ty
+  useEffect(() => {
+    setUserLoc(getSavedUserLocation())
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const next = { lat: pos.coords.latitude, lon: pos.coords.longitude }
+          setUserLoc(next)
+          try { localStorage.setItem(USER_LOCATION_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+        },
+        () => { /* giữ vị trí đã lưu / mặc định HUST */ },
+        { enableHighAccuracy: false, timeout: 8000 }
+      )
+    }
+  }, [])
 
   useEffect(() => {
     params.then(p => {
@@ -183,6 +202,11 @@ export default function JobDetailPage({ params }: PageProps) {
   const benStats = parseBenefitsStatus(job.benefits)
   const deadlineDate = job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : 'Nhận hồ sơ liên tục'
   const isExpired = job.deadline ? new Date(job.deadline) < new Date() : false
+  const destination = job.latitude && job.longitude
+    ? `${job.latitude},${job.longitude}`
+    : encodeURIComponent(`${job.company} ${job.location || "Việt Nam"}`)
+  // Chỉ đường từ vị trí người dùng (hoặc HUST) đến công ty
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLoc.lat},${userLoc.lon}&destination=${destination}`
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20">
@@ -226,7 +250,7 @@ export default function JobDetailPage({ params }: PageProps) {
                     <Clock size={14} /> {job.posted_at ? `Đăng ngày: ${new Date(job.posted_at).toLocaleDateString('vi-VN')}` : 'Đang tuyển dụng'}
                   </span>
                   {isExpired && (
-                    <span className="px-2.5 py-0.5 rounded bg-rose-500/20 text-rose-450 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider">
+                    <span className="px-3 py-1 rounded-lg bg-red-500 text-white border border-red-600 text-xs font-black uppercase tracking-wider">
                       Đã hết hạn
                     </span>
                   )}
@@ -241,13 +265,21 @@ export default function JobDetailPage({ params }: PageProps) {
             </div>
             
             <div className="flex flex-wrap gap-3 shrink-0">
-              <button className="w-14 h-14 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 transition-all flex items-center justify-center backdrop-blur-md">
-                <Bookmark size={24} />
+              <button
+                onClick={() => setSaved(s => !s)}
+                title={saved ? "Đã lưu" : "Lưu công việc"}
+                className={`w-14 h-14 rounded-2xl border transition-all flex items-center justify-center backdrop-blur-md ${
+                  saved
+                    ? "bg-amber-400 text-slate-900 border-amber-300"
+                    : "bg-white/5 hover:bg-white/10 text-white border-white/10"
+                }`}
+              >
+                <Bookmark size={24} className={saved ? "fill-slate-900" : ""} />
               </button>
               {isExpired ? (
-                <button 
+                <button
                   disabled
-                  className="h-14 px-8 bg-slate-800 text-slate-400 font-black rounded-2xl border border-slate-700 cursor-not-allowed flex items-center justify-center gap-2 text-base"
+                  className="h-14 px-8 bg-rose-100 text-rose-700 font-black rounded-2xl border border-rose-200 cursor-not-allowed flex items-center justify-center gap-2 text-base"
                 >
                   Đã hết hạn nộp hồ sơ
                 </button>
@@ -264,12 +296,12 @@ export default function JobDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 -mt-16 relative z-20">
+      <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column */}
           <div className="lg:col-span-8 space-y-8">
-            
+
             {/* Core Metrics Table */}
             <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100 grid grid-cols-2 md:grid-cols-5 gap-6">
                <div className="flex flex-col gap-1">
@@ -327,7 +359,7 @@ export default function JobDetailPage({ params }: PageProps) {
                 </div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">Mô tả công việc</h2>
               </div>
-              <div className="prose prose-slate max-w-none text-slate-650 leading-relaxed prose-p:text-base prose-li:text-base">
+              <div className="prose prose-lg prose-slate max-w-none text-slate-700 leading-relaxed prose-p:text-lg prose-li:text-lg">
                 <ReactMarkdown>{job.description || "_Đang cập nhật nội dung..._"}</ReactMarkdown>
               </div>
             </div>
@@ -340,15 +372,15 @@ export default function JobDetailPage({ params }: PageProps) {
                 </div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">Yêu cầu ứng viên</h2>
               </div>
-              <div className="prose prose-slate max-w-none text-slate-650 leading-relaxed prose-p:text-base prose-li:text-base">
+              <div className="prose prose-lg prose-slate max-w-none text-slate-700 leading-relaxed prose-p:text-lg prose-li:text-lg">
                 <ReactMarkdown>{job.requirements || "_Đang cập nhật nội dung..._"}</ReactMarkdown>
               </div>
               
               <div className="mt-8 pt-8 border-t border-slate-100">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Kỹ năng cốt lõi</h3>
+                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Kỹ năng cốt lõi</h3>
                 <div className="flex flex-wrap gap-2">
                   {job.skills?.map((skill: string) => (
-                    <span key={skill} className="px-4 py-2.5 bg-violet-50 text-violet-700 font-bold rounded-xl border border-violet-100/50 text-xs">
+                    <span key={skill} className="px-4 py-2.5 bg-violet-50 text-violet-700 font-bold rounded-xl border border-violet-100/50 text-sm">
                       {skill}
                     </span>
                   ))}
@@ -370,24 +402,28 @@ export default function JobDetailPage({ params }: PageProps) {
 
             {/* Company Info & Source */}
             <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-slate-100 overflow-hidden relative">
-              <h3 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-50 pb-3">
-                <Building size={18} className="text-blue-500" /> Thông tin công ty
+              <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-50 pb-3">
+                <Building size={20} className="text-blue-500" /> Thông tin công ty
               </h3>
-              <p className="text-slate-600 leading-relaxed text-sm font-medium mb-4">
+              <p className="text-slate-600 leading-relaxed text-base font-medium mb-4">
                 {job.company_info || `Tại ${job.company}, chúng tôi luôn tìm kiếm những tài năng xuất sắc nhất để cùng xây dựng những giải pháp công nghệ tiên phong.`}
               </p>
               <div className="space-y-3 border-t border-slate-50 pt-4">
-                 <div className="flex justify-between items-center text-xs font-bold">
+                 <div className="flex justify-between items-center text-sm font-bold">
                     <span className="text-slate-400 uppercase">Quy mô</span>
                     <span className="text-slate-700">50 - 150 nhân viên</span>
                  </div>
-                 <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-400 uppercase">Trụ sở</span>
-                    <span className="text-slate-700">{job.location || "Việt Nam"}</span>
-                 </div>
-                 <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-400 uppercase">Nguồn tuyển dụng</span>
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 capitalize">{job.source || "Hệ thống Opportify"}</span>
+                 <div className="flex justify-between items-center gap-3 text-sm font-bold">
+                    <span className="text-slate-400 uppercase shrink-0">Địa chỉ</span>
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 text-right min-w-0"
+                    >
+                      <MapPin size={14} className="shrink-0" />
+                      <span className="truncate">{job.location || "Việt Nam"}</span>
+                    </a>
                  </div>
               </div>
             </div>
@@ -395,22 +431,22 @@ export default function JobDetailPage({ params }: PageProps) {
             {/* Fast Apply Button Container */}
             <div className="space-y-3 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl">
                {isExpired ? (
-                <button 
+                <button
                   disabled
-                  className="w-full h-14 bg-slate-800 text-slate-450 font-black rounded-2xl border border-slate-700 cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-rose-100 text-rose-700 font-black rounded-2xl border border-rose-200 cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   Đã hết hạn nộp
                 </button>
               ) : (
-                <button 
+                <button
                   onClick={() => setIsApplyOpen(true)}
                   className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-blue-500/10"
                 >
                   Nộp đơn ngay <Send size={18} />
                 </button>
               )}
-              <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-wider px-2">
-                 Bạn có thể nộp trực tiếp từ CV AI của bạn hoặc file PDF mới
+              <p className="text-xs text-center font-bold text-slate-400 px-2">
+                 Bạn có thể nộp từ CV trong hệ thống hoặc tải file CV lên.
               </p>
             </div>
           </div>

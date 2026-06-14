@@ -40,8 +40,10 @@ async def get_jobs(
     salary_currency: Optional[str] = None,
     experience: Optional[str] = None,
     job_type: Optional[str] = None,
-    sort_by: str = Query("posted_at"),
-    order: str = Query("desc"),
+    industry: Optional[str] = None,
+    work_mode: Optional[str] = None,
+    sort_by: str = Query("deadline"),
+    order: str = Query("asc"),
     user_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
@@ -52,7 +54,14 @@ async def get_jobs(
 
     query = select(Job)
     if q:
-        query = query.where(Job.title.ilike(f"%{q}%") | Job.description.ilike(f"%{q}%"))
+        # Tìm theo cả tên việc làm, công ty và mô tả
+        query = query.where(
+            or_(
+                Job.title.ilike(f"%{q}%"),
+                Job.company.ilike(f"%{q}%"),
+                Job.description.ilike(f"%{q}%"),
+            )
+        )
     if location:
         location_value = location.strip().lower()
         location_aliases = {
@@ -95,30 +104,47 @@ async def get_jobs(
     job_type_list = parse_csv(job_type)
     if job_type_list:
         query = query.where(func.lower(Job.job_type).in_(job_type_list))
-        
+
+    industry_list = parse_csv(industry)
+    if industry_list:
+        industry_filters = [
+            func.lower(Job.industry).ilike(f"%{value}%") for value in industry_list
+        ]
+        query = query.where(or_(*industry_filters))
+
+    work_mode_list = parse_csv(work_mode)
+    if work_mode_list:
+        query = query.where(func.lower(Job.work_mode).in_(work_mode_list))
+
     # Count total before applying pagination so every page reports the same total.
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # 1. Xử lý các tiêu chí sắp xếp thuần SQL (Lương, Ngày đăng, Hạn nộp, Lượt xem)
+    # 1. Xử lý các tiêu chí sắp xếp thuần SQL.
+    # Job đã hết hạn nộp hồ sơ LUÔN bị đẩy xuống cuối (với mọi kiểu sort).
+    from sqlalchemy import case
+    current_time = datetime.utcnow()
+    expired_order = case(
+        (Job.deadline.is_(None), 0),       # không có hạn -> coi như còn hạn
+        (Job.deadline >= current_time, 0), # còn hạn
+        else_=1                            # đã hết hạn -> xuống cuối
+    ).asc()
+
     if sort_by == "salary":
-        query = query.order_by(Job.salary_max.desc() if order == "desc" else Job.salary_max.asc())
+        query = query.order_by(expired_order, Job.salary_max.desc() if order == "desc" else Job.salary_max.asc())
     elif sort_by == "posted_at":
-        query = query.order_by(Job.posted_at.desc() if order == "desc" else Job.posted_at.asc())
+        query = query.order_by(expired_order, Job.posted_at.desc() if order == "desc" else Job.posted_at.asc())
     elif sort_by == "deadline":
-        from sqlalchemy import case
-        current_time = datetime.utcnow()
         query = query.order_by(
-            case(
-                (Job.deadline.is_(None), 0),
-                (Job.deadline >= current_time, 0),
-                else_=1
-            ).asc(),
+            expired_order,
             Job.deadline.desc() if order == "desc" else Job.deadline.asc()
         )
     elif sort_by == "popularity":
-        query = query.order_by(Job.view_count.desc() if order == "desc" else Job.view_count.asc())
+        query = query.order_by(expired_order, Job.view_count.desc() if order == "desc" else Job.view_count.asc())
+    elif sort_by != "match_score":
+        # Mặc định ("default"): còn hạn trước, rồi ngày đăng mới nhất.
+        query = query.order_by(expired_order, Job.posted_at.desc())
 
     # Lấy dữ liệu
     result = await db.execute(query)

@@ -3,7 +3,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import {
   UserCircle2, Briefcase, GraduationCap, Star, MapPin,
   Code2, ChevronRight, ExternalLink, Award, Calendar,
@@ -13,8 +12,8 @@ import { UserProfile, RecommendedJob, RecommendedScholarship } from "@/lib/types
 import { api, API_URL } from "@/lib/api";
 
 // ── Helpers & Constants ───────────────────────────────────────────────────────
-const LEVEL_LABELS: Record<string, string> = { fresher: "Fresher", junior: "Junior", mid: "Mid-level", senior: "Senior" };
-const EDU_LABELS: Record<string, string> = { bachelor: "Cử nhân / Đại học", master: "Thạc sĩ", phd: "Tiến sĩ" };
+const LEVEL_LABELS: Record<string, string> = { fresher: "Mới đi làm", junior: "Cấp thấp", mid: "Cấp trung", senior: "Cấp cao" };
+const EDU_LABELS: Record<string, string> = { bachelor: "Cử nhân", master: "Thạc sĩ", phd: "Tiến sĩ" };
 
 interface EducationMilestone {
   school: string;
@@ -92,9 +91,14 @@ export default function ProfilePage() {
   const [languageScores, setLanguageScores] = useState<LanguageScore[]>([]);
   const [educationHistory, setEducationHistory] = useState<EducationMilestone[]>([]);
   const [experienceHistory, setExperienceHistory] = useState<ExperienceMilestone[]>([]);
+  // Định hướng học bổng (lưu localStorage)
+  const [nationality, setNationality] = useState("");
+  const [targetCountry, setTargetCountry] = useState("");
+  const [targetDegree, setTargetDegree] = useState("");
 
   // Text inputs for edit form comma separation to avoid cursor resets
   const [skillsInput, setSkillsInput] = useState("");
+  const [academicInput, setAcademicInput] = useState("");
   const [locationsInput, setLocationsInput] = useState("");
   const [fieldsInput, setFieldsInput] = useState("");
 
@@ -112,19 +116,21 @@ export default function ProfilePage() {
   const [loadingCV, setLoadingCV] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setCurrentUser(prev => prev ? { ...prev, avatar_url: base64String } : null);
-        setEditData(prev => ({ ...prev, avatar_url: base64String }));
-        if (currentUser) {
-          localStorage.setItem(`profile_avatar_${currentUser.id}`, base64String);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file || !currentUser) return;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { avatar_url } = await api.profile.uploadAvatar(formData);
+      // Đường dẫn tương đối từ server -> ghép với API_URL, thêm tham số chống cache
+      const fullUrl = `${API_URL}${avatar_url}?t=${Date.now()}`;
+      setCurrentUser(prev => prev ? { ...prev, avatar_url: fullUrl } : null);
+      setEditData(prev => ({ ...prev, avatar_url }));
+      localStorage.setItem(`profile_avatar_${currentUser.id}`, fullUrl);
+    } catch (err) {
+      console.error("Tải ảnh lên thất bại", err);
+      alert("Tải ảnh lên thất bại. Vui lòng thử lại.");
     }
   };
 
@@ -137,7 +143,9 @@ export default function ProfilePage() {
       preferred_locations: currentUser?.preferred_locations || [],
       preferred_job_types: currentUser?.preferred_job_types || []
     });
-    setSkillsInput(currentUser?.skills?.join(", ") || "");
+    const cat = categorizeSkills(currentUser?.skills || []);
+    setSkillsInput(cat.hard.join(", "));
+    setAcademicInput(cat.academic.join(", "));
     setLocationsInput(currentUser?.preferred_locations?.join(", ") || "");
     setFieldsInput(currentUser?.interest_fields?.join(", ") || "");
   };
@@ -149,11 +157,13 @@ export default function ProfilePage() {
         await api.auth.autoLogin();
         const user = await api.profile.getMe();
 
-        // Load custom localStorage avatar
+        // Avatar: ưu tiên bản localStorage; nếu DB lưu đường dẫn tương đối thì ghép API_URL
         const localAvatarKey = `profile_avatar_${user.id}`;
         const localAvatar = localStorage.getItem(localAvatarKey);
         if (localAvatar) {
           user.avatar_url = localAvatar;
+        } else if (user.avatar_url && user.avatar_url.startsWith("/uploads")) {
+          user.avatar_url = `${API_URL}${user.avatar_url}`;
         }
         setCurrentUser(user);
 
@@ -205,6 +215,9 @@ export default function ProfilePage() {
           }
           setEducationHistory(localData.educationHistory || []);
           setExperienceHistory(localData.experienceHistory || []);
+          setNationality(localData.nationality || "Việt Nam");
+          setTargetCountry(localData.targetCountry || "");
+          setTargetDegree(localData.targetDegree || "");
         } else {
           // Pre-populate with realistic defaults matching database profile
           const initialEdu: EducationMilestone[] = [];
@@ -269,7 +282,9 @@ export default function ProfilePage() {
     if (!currentUser) return;
     setIsSaving(true);
     try {
-      const finalSkills = skillsInput.split(",").map(x => x.trim()).filter(Boolean);
+      const hardSkills = skillsInput.split(",").map(x => x.trim()).filter(Boolean);
+      const academicSkills = academicInput.split(",").map(x => x.trim()).filter(Boolean);
+      const finalSkills = Array.from(new Set([...hardSkills, ...academicSkills]));
       const finalLocations = locationsInput.split(",").map(x => x.trim()).filter(Boolean);
       const finalFields = fieldsInput.split(",").map(x => x.trim()).filter(Boolean);
 
@@ -298,7 +313,10 @@ export default function ProfilePage() {
         aspirations,
         languageScores,
         educationHistory,
-        experienceHistory
+        experienceHistory,
+        nationality,
+        targetCountry,
+        targetDegree
       };
       localStorage.setItem(localKey, JSON.stringify(mockPayload));
 
@@ -408,9 +426,9 @@ export default function ProfilePage() {
     );
   }
 
-  const { hard, academic, languages } = categorizeSkills(currentUser.skills || []);
+  const { hard, academic } = categorizeSkills(currentUser.skills || []);
   const completionPct = calculateCompleteness();
-  const tagline = `${currentUser.experience_level ? LEVEL_LABELS[currentUser.experience_level] : "Kỹ sư"} ${currentUser.education_field || "Công nghệ"} & Ứng viên tiềm năng`;
+  const displayEmail = currentUser.contact_email || currentUser.email;
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
@@ -418,7 +436,7 @@ export default function ProfilePage() {
       {/* A. Khu vực Header (Thông tin chung & Thống kê nhanh) */}
       <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 pt-16 pb-28 px-6 text-white shadow-inner relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-white/5 skew-x-12 translate-x-1/2 pointer-events-none"></div>
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
 
           <div className="flex gap-5 items-center">
             {/* Circular Avatar */}
@@ -442,8 +460,19 @@ export default function ProfilePage() {
                 <h1 className="text-2xl md:text-3xl font-black tracking-tight">{currentUser.full_name || currentUser.username}</h1>
                 <span className="bg-white/15 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">@{currentUser.username}</span>
               </div>
-              <p className="text-indigo-200 text-sm font-semibold mb-1">{currentUser.email}</p>
-              <p className="text-white/60 text-xs flex items-center gap-1.5"><Sparkles size={12} /> {tagline}</p>
+              <p className="text-indigo-200 text-base font-semibold">{displayEmail}</p>
+              <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-bold">
+                {currentUser.phone && <span className="text-white/70">{currentUser.phone}</span>}
+                {currentUser.github_url && (
+                  <a href={currentUser.github_url} target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white underline underline-offset-2">GitHub</a>
+                )}
+                {currentUser.linkedin_url && (
+                  <a href={currentUser.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white underline underline-offset-2">LinkedIn</a>
+                )}
+                {currentUser.portfolio_url && (
+                  <a href={currentUser.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white underline underline-offset-2">Hồ sơ cá nhân</a>
+                )}
+              </div>
             </div>
           </div>
 
@@ -476,7 +505,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Quick Metrics Bar */}
-        <div className="max-w-6xl mx-auto mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+        <div className="max-w-7xl mx-auto mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
           <div className="bg-white/10 border border-white/10 rounded-2xl p-4 backdrop-blur-md flex items-center gap-4">
             <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center text-blue-205 shrink-0"><Briefcase size={20} /></div>
             <div>
@@ -514,7 +543,7 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
           {/* B. Cột Trái (65%): Dữ liệu cốt lõi */}
-          <div className="lg:col-span-8 space-y-8">
+          <div className={`${activeTab === "profile" ? "lg:col-span-8" : "lg:col-span-12"} space-y-8`}>
 
             {/* 0. Thông tin Hồ sơ & Học vấn (Edit mode only - render at the top) */}
             {isEditing && (
@@ -525,17 +554,17 @@ export default function ProfilePage() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Họ tên hiển thị</label>
-                    <input type="text" value={editData.full_name || ""} onChange={e => setEditData({ ...editData, full_name: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    <input type="text" value={editData.full_name || ""} onChange={e => setEditData({ ...editData, full_name: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Đại học / Viện nghiên cứu</label>
-                    <input type="text" value={editData.university || ""} onChange={e => setEditData({ ...editData, university: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    <input type="text" value={editData.university || ""} onChange={e => setEditData({ ...editData, university: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
                   </div>
                 </div>
                 <div className="grid sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Trình độ học vấn</label>
-                    <select value={editData.education_level || ""} onChange={e => setEditData({ ...editData, education_level: e.target.value as any })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none">
+                    <select value={editData.education_level || ""} onChange={e => setEditData({ ...editData, education_level: e.target.value as any })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none">
                       <option value="">Chọn trình độ</option>
                       <option value="bachelor">Cử nhân</option>
                       <option value="master">Thạc sĩ</option>
@@ -544,27 +573,77 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Ngành học</label>
-                    <input type="text" value={editData.education_field || ""} onChange={e => setEditData({ ...editData, education_field: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    <input type="text" value={editData.education_field || ""} onChange={e => setEditData({ ...editData, education_field: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Số năm kinh nghiệm</label>
-                    <input type="number" value={editData.experience_years || 0} onChange={e => setEditData({ ...editData, experience_years: parseInt(e.target.value) || 0 })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    <input type="number" value={editData.experience_years || 0} onChange={e => setEditData({ ...editData, experience_years: parseInt(e.target.value) || 0 })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">CPA (thang điểm 4.0)</label>
+                    <input type="number" step="0.01" min="0" max="4" value={editData.gpa ?? ""} onChange={e => setEditData({ ...editData, gpa: e.target.value === "" ? null : parseFloat(e.target.value) })} placeholder="Ví dụ: 3.4" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Quốc tịch</label>
+                    <input type="text" value={nationality} onChange={e => setNationality(e.target.value)} placeholder="VD: Việt Nam" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Bậc học muốn xin học bổng</label>
+                    <select value={targetDegree} onChange={e => setTargetDegree(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none">
+                      <option value="">Chưa chọn</option>
+                      <option value="bachelor">Cử nhân</option>
+                      <option value="master">Thạc sĩ</option>
+                      <option value="phd">Tiến sĩ</option>
+                    </select>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Bio / Giới thiệu</label>
-                  <textarea rows={3} value={editData.bio || ""} onChange={e => setEditData({ ...editData, bio: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none" />
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Quốc gia muốn du học (mục tiêu học bổng)</label>
+                  <input type="text" value={targetCountry} onChange={e => setTargetCountry(e.target.value)} placeholder="VD: Nhật Bản, Đức, Hàn Quốc..." className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Giới thiệu bản thân</label>
+                  <textarea rows={3} value={editData.bio || ""} onChange={e => setEditData({ ...editData, bio: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <h4 className="text-sm font-black text-slate-700 mb-3">Thông tin liên hệ</h4>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Email liên hệ</label>
+                      <input type="email" value={editData.contact_email || ""} onChange={e => setEditData({ ...editData, contact_email: e.target.value })} placeholder="Ví dụ: ten@gmail.com" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Số điện thoại</label>
+                      <input type="text" value={editData.phone || ""} onChange={e => setEditData({ ...editData, phone: e.target.value })} placeholder="Ví dụ: 0901234567" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Liên kết GitHub</label>
+                      <input type="url" value={editData.github_url || ""} onChange={e => setEditData({ ...editData, github_url: e.target.value })} placeholder="https://github.com/tencuaban" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Liên kết LinkedIn</label>
+                      <input type="url" value={editData.linkedin_url || ""} onChange={e => setEditData({ ...editData, linkedin_url: e.target.value })} placeholder="https://linkedin.com/in/tencuaban" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Liên kết hồ sơ cá nhân / Portfolio</label>
+                      <input type="url" value={editData.portfolio_url || ""} onChange={e => setEditData({ ...editData, portfolio_url: e.target.value })} placeholder="https://..." className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Tab Navigation */}
+            {/* Tab Navigation (ẩn khi đang chỉnh sửa hồ sơ) */}
+            {!isEditing && (
             <div className="flex bg-slate-100/80 p-1.5 rounded-[1.25rem] gap-1.5 mb-8 border border-slate-200/40 w-fit backdrop-blur-sm">
               <button
                 onClick={() => setActiveTab("profile")}
-                className={`py-2.5 px-5 text-xs md:text-sm font-bold rounded-[1rem] transition-all duration-200 flex items-center gap-2 active:scale-95 ${
-                  activeTab === "profile" 
-                    ? "bg-white text-blue-600 shadow-sm border border-slate-100 font-black" 
+                className={`py-2.5 px-5 text-sm md:text-base font-bold rounded-[1rem] transition-all duration-200 flex items-center gap-2 active:scale-95 ${
+                  activeTab === "profile"
+                    ? "bg-white text-blue-600 shadow-sm border border-slate-100 font-black"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
                 }`}
               >
@@ -572,39 +651,26 @@ export default function ProfilePage() {
               </button>
               <button
                 onClick={() => setActiveTab("jobs")}
-                className={`py-2.5 px-5 text-xs md:text-sm font-bold rounded-[1rem] transition-all duration-200 flex items-center gap-2 active:scale-95 ${
-                  activeTab === "jobs" 
-                    ? "bg-white text-blue-600 shadow-sm border border-slate-100 font-black" 
+                className={`py-2.5 px-5 text-sm md:text-base font-bold rounded-[1rem] transition-all duration-200 flex items-center gap-2 active:scale-95 ${
+                  activeTab === "jobs"
+                    ? "bg-white text-blue-600 shadow-sm border border-slate-100 font-black"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
                 }`}
               >
                 <Briefcase size={16} /> Việc làm phù hợp
-                {recommendedJobs.length > 0 && (
-                  <span className={`px-2 py-0.5 text-[10px] rounded-lg font-black transition-colors ${
-                    activeTab === "jobs" ? "bg-blue-50 text-blue-700" : "bg-slate-200/60 text-slate-600"
-                  }`}>
-                    {Math.round(recommendedJobs[0].match_score * 100) / 1}%
-                  </span>
-                )}
               </button>
               <button
                 onClick={() => setActiveTab("scholarships")}
-                className={`py-2.5 px-5 text-xs md:text-sm font-bold rounded-[1rem] transition-all duration-200 flex items-center gap-2 active:scale-95 ${
-                  activeTab === "scholarships" 
-                    ? "bg-white text-indigo-650 shadow-sm border border-slate-100 font-black" 
+                className={`py-2.5 px-5 text-sm md:text-base font-bold rounded-[1rem] transition-all duration-200 flex items-center gap-2 active:scale-95 ${
+                  activeTab === "scholarships"
+                    ? "bg-white text-indigo-600 shadow-sm border border-slate-100 font-black"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
                 }`}
               >
                 <GraduationCap size={16} /> Học bổng phù hợp
-                {recommendedScholarships.length > 0 && (
-                  <span className={`px-2 py-0.5 text-[10px] rounded-lg font-black transition-colors ${
-                    activeTab === "scholarships" ? "bg-indigo-50 text-indigo-700" : "bg-slate-200/60 text-slate-600"
-                  }`}>
-                    {Math.round(recommendedScholarships[0].match_score * 100) / 1}%
-                  </span>
-                )}
               </button>
             </div>
+            )}
 
             {activeTab === "profile" && (
               <div className="space-y-8">
@@ -619,9 +685,23 @@ export default function ProfilePage() {
 
                   {!isEditing ? (
                     <div className="border-2 border-dashed border-slate-150 rounded-2xl p-6 bg-slate-50/30 space-y-5">
-                      <div className="grid sm:grid-cols-2 gap-5">
+                      <div className="grid sm:grid-cols-3 gap-5">
                         <div>
-                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Địa điểm mong muốn</p>
+                          <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">CPA</p>
+                          <span className="text-base font-black text-slate-800">{currentUser.gpa ? `${currentUser.gpa}/4.0` : "Chưa cập nhật"}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">Quốc gia du học mong muốn</p>
+                          <span className="text-base font-bold text-slate-700">{targetCountry || "Chưa cập nhật"}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">Bậc học mục tiêu</p>
+                          <span className="text-base font-bold text-slate-700">{targetDegree ? (EDU_LABELS[targetDegree] || targetDegree) : "Chưa cập nhật"}</span>
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-5 border-t border-slate-100 pt-4">
+                        <div>
+                          <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">Địa điểm mong muốn</p>
                           <div className="flex flex-wrap gap-1.5">
                             {currentUser.preferred_locations && currentUser.preferred_locations.length > 0 ? (
                               currentUser.preferred_locations.map(loc => (
@@ -667,7 +747,8 @@ export default function ProfilePage() {
                     <div className="space-y-4">
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Địa điểm mong muốn (phân cách bằng dấu phẩy)</label>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Địa điểm mong muốn</label>
+                          <p className="text-xs text-slate-400 font-semibold mb-2">Các địa điểm cách nhau bằng dấu phẩy</p>
                           <input
                             type="text"
                             value={locationsInput}
@@ -677,7 +758,8 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Lĩnh vực quan tâm (phân cách bằng dấu phẩy)</label>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Lĩnh vực quan tâm</label>
+                          <p className="text-xs text-slate-400 font-semibold mb-2">Các lĩnh vực cách nhau bằng dấu phẩy</p>
                           <input
                             type="text"
                             value={fieldsInput}
@@ -826,7 +908,7 @@ export default function ProfilePage() {
                                     setEducationHistory(copy);
                                   }}
                                   placeholder="Tên trường học/Đại học"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                  className="px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
                                 />
                                 <input
                                   type="text"
@@ -837,7 +919,7 @@ export default function ProfilePage() {
                                     setEducationHistory(copy);
                                   }}
                                   placeholder="Thời gian (VD: 2021 - 2025)"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                  className="px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
                                 />
                               </div>
                               <div className="grid sm:grid-cols-2 gap-3">
@@ -850,7 +932,7 @@ export default function ProfilePage() {
                                     setEducationHistory(copy);
                                   }}
                                   placeholder="Chuyên ngành"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                  className="px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
                                 />
                                 <input
                                   type="text"
@@ -862,7 +944,7 @@ export default function ProfilePage() {
                                     setEducationHistory(copy);
                                   }}
                                   placeholder="CPA (VD: 3.5/4.0)"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                  className="px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
                                 />
                               </div>
                               <input
@@ -874,7 +956,7 @@ export default function ProfilePage() {
                                   setEducationHistory(copy);
                                 }}
                                 placeholder="Mô tả đề tài nghiên cứu hoặc khóa luận tốt nghiệp"
-                                className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                className="w-full px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
                               />
                             </div>
                           ))}
@@ -903,7 +985,7 @@ export default function ProfilePage() {
                                     setExperienceHistory(copy);
                                   }}
                                   placeholder="Tên công ty"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                  className="px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
                                 />
                                 <input
                                   type="text"
@@ -914,31 +996,32 @@ export default function ProfilePage() {
                                     setExperienceHistory(copy);
                                   }}
                                   placeholder="Thời gian (VD: 2022 - 2024)"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                  className="px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
                                 />
                               </div>
-                              <div className="grid sm:grid-cols-2 gap-3">
-                                <input
-                                  type="text"
-                                  value={exp.position}
+                              <input
+                                type="text"
+                                value={exp.position}
+                                onChange={e => {
+                                  const copy = [...experienceHistory];
+                                  copy[idx].position = e.target.value;
+                                  setExperienceHistory(copy);
+                                }}
+                                placeholder="Vị trí, ví dụ: Lập trình viên"
+                                className="w-full px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none"
+                              />
+                              <div>
+                                <p className="text-xs text-slate-400 font-semibold mb-1.5">Các dự án / nhiệm vụ — mỗi dòng một mục</p>
+                                <textarea
+                                  rows={3}
+                                  value={exp.projects?.join("\n") || ""}
                                   onChange={e => {
                                     const copy = [...experienceHistory];
-                                    copy[idx].position = e.target.value;
+                                    copy[idx].projects = e.target.value.split("\n").map(x => x.trim()).filter(Boolean);
                                     setExperienceHistory(copy);
                                   }}
-                                  placeholder="Vị trí (VD: Junior Developer)"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
-                                />
-                                <input
-                                  type="text"
-                                  value={exp.projects?.join("; ") || ""}
-                                  onChange={e => {
-                                    const copy = [...experienceHistory];
-                                    copy[idx].projects = e.target.value.split(";").map(x => x.trim()).filter(Boolean);
-                                    setExperienceHistory(copy);
-                                  }}
-                                  placeholder="Các dự án/nhiệm vụ (phân cách bằng dấu chấm phẩy ';')"
-                                  className="px-3 py-2 bg-white border rounded-xl text-xs font-semibold focus:ring-indigo-500 focus:outline-none"
+                                  placeholder={"Ví dụ:\nXây dựng hệ thống quản lý kho\nTối ưu hiệu năng truy vấn dữ liệu"}
+                                  className="w-full px-3 py-2 bg-white border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none leading-relaxed"
                                 />
                               </div>
                             </div>
@@ -949,54 +1032,58 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* 3. Bản đồ Kỹ năng chuyên môn (Skills Cloud) */}
+                {/* 3. Bản đồ kỹ năng */}
                 <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100">
                   <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
                     <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center"><Code2 size={20} /></div>
-                    <h2 className="text-xl font-black text-slate-800">Bản đồ Kỹ năng chuyên môn (Skills Cloud)</h2>
+                    <h2 className="text-xl font-black text-slate-800">Bản đồ kỹ năng</h2>
                   </div>
 
                   {!isEditing ? (
                     <div className="space-y-6">
                       <div>
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Kỹ năng chuyên môn (Hard Skills)</h3>
+                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider mb-3">Kỹ năng chuyên môn</h3>
                         <div className="flex flex-wrap gap-2">
                           {hard.map(s => (
-                            <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-bold">{s}</span>
+                            <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-sm font-bold">{s}</span>
                           ))}
-                          {hard.length === 0 && <span className="text-slate-400 text-xs">Chưa cập nhật</span>}
+                          {hard.length === 0 && <span className="text-slate-400 text-sm">Chưa cập nhật</span>}
                         </div>
                       </div>
                       <div>
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Kỹ năng Nghiên cứu & Học thuật (Academic Skills)</h3>
+                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider mb-3">Kỹ năng nghiên cứu &amp; học thuật</h3>
                         <div className="flex flex-wrap gap-2">
                           {academic.map(s => (
-                            <span key={s} className="px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-lg text-xs font-bold">{s}</span>
+                            <span key={s} className="px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-lg text-sm font-bold">{s}</span>
                           ))}
-                          {academic.length === 0 && <span className="text-slate-400 text-xs">Chưa cập nhật</span>}
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Chứng chỉ Ngoại ngữ & Khác (Languages)</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {languages.map(s => (
-                            <span key={s} className="px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-100 rounded-lg text-xs font-bold">{s}</span>
-                          ))}
-                          {languages.length === 0 && <span className="text-slate-400 text-xs">Chưa cập nhật</span>}
+                          {academic.length === 0 && <span className="text-slate-400 text-sm">Chưa cập nhật</span>}
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">Kỹ năng tổng hợp (phân cách bằng dấu phẩy)</label>
-                      <textarea
-                        value={skillsInput}
-                        onChange={e => setSkillsInput(e.target.value)}
-                        placeholder="React, Next.js, Academic Writing, IELTS 7.5, Python..."
-                        rows={4}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs font-semibold"
-                      />
-                      <p className="text-[10px] text-slate-400 font-bold">Hệ thống AI sẽ tự động phân tách kỹ năng vào các mục tương ứng sau khi bạn lưu.</p>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-sm font-black text-slate-600 mb-1">Kỹ năng chuyên môn</label>
+                        <p className="text-xs text-slate-400 font-semibold mb-2">Các kỹ năng cách nhau bằng dấu phẩy</p>
+                        <textarea
+                          value={skillsInput}
+                          onChange={e => setSkillsInput(e.target.value)}
+                          placeholder="Ví dụ: React, Next.js, Python, SQL, Docker"
+                          rows={3}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-black text-slate-600 mb-1">Kỹ năng nghiên cứu &amp; học thuật</label>
+                        <p className="text-xs text-slate-400 font-semibold mb-2">Các kỹ năng cách nhau bằng dấu phẩy</p>
+                        <textarea
+                          value={academicInput}
+                          onChange={e => setAcademicInput(e.target.value)}
+                          placeholder="Ví dụ: Viết báo khoa học, Phân tích thống kê, Phương pháp nghiên cứu"
+                          rows={3}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1030,45 +1117,42 @@ export default function ProfilePage() {
                       const pct = Math.round(score);
                       const scoreColor = pct >= 80 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : pct >= 50 ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-slate-50 text-slate-600 border-slate-200";
                       return (
-                        <div key={job.id} className="border border-slate-150 rounded-[1.5rem] p-6 bg-white hover:shadow-xl hover:border-blue-200 transition-all duration-300 relative group">
+                        <a key={job.id} href={`/jobs/${job.id}`} target="_blank" rel="noopener noreferrer" className="block border border-slate-150 rounded-[1.5rem] p-7 bg-white hover:shadow-xl hover:border-blue-200 transition-all duration-300 relative group cursor-pointer">
                           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                             <div>
-                              <h4 className="font-extrabold text-slate-800 text-lg leading-tight group-hover:text-blue-600 transition-colors">
+                              <h4 className="font-extrabold text-slate-800 text-xl leading-tight group-hover:text-blue-600 transition-colors">
                                 {job.title}
                               </h4>
-                              <p className="text-sm text-slate-500 font-bold mt-1">{job.company} · {job.location}</p>
+                              <p className="text-base text-slate-500 font-bold mt-1">{job.company} · {job.location}</p>
                             </div>
-                            <span className={`px-3 py-1 text-xs font-black rounded-lg border uppercase tracking-wider shrink-0 ${scoreColor}`}>
+                            <span className={`px-3 py-1.5 text-sm font-black rounded-lg border uppercase tracking-wider shrink-0 ${scoreColor}`}>
                               {pct}% Khớp
                             </span>
                           </div>
 
                           <div className="mb-4">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Lý do gợi ý:</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Lý do gợi ý:</p>
                             <div className="flex flex-wrap gap-2">
                               {job.match_reasons?.map((reason, idx) => (
-                                <span key={idx} className="text-xs bg-slate-50 text-slate-600 border border-slate-150 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1">
-                                  <CheckCircle2 size={12} className="text-emerald-500 shrink-0" /> {reason}
+                                <span key={idx} className="text-sm bg-slate-50 text-slate-600 border border-slate-150 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1">
+                                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0" /> {reason}
                                 </span>
                               ))}
                               {(!job.match_reasons || job.match_reasons.length === 0) && (
-                                <span className="text-xs text-slate-400 font-semibold italic">Gợi ý dựa trên hồ sơ chung</span>
+                                <span className="text-sm text-slate-400 font-semibold italic">Gợi ý dựa trên hồ sơ chung</span>
                               )}
                             </div>
                           </div>
 
                           <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                            <span className="text-xs font-bold text-slate-400">
+                            <span className="text-sm font-bold text-slate-400">
                               Kỹ năng yêu cầu: {job.skills?.slice(0, 3).join(", ") || "Không có yêu cầu cụ thể"}
                             </span>
-                            <Link
-                              href={`/jobs/${job.id}`}
-                              className="flex items-center gap-1.5 text-blue-650 hover:text-blue-500 font-black text-xs transition-colors"
-                            >
-                              Xem chi tiết ứng tuyển <ExternalLink size={12} />
-                            </Link>
+                            <span className="flex items-center gap-1.5 text-blue-600 group-hover:text-blue-500 font-black text-sm transition-colors">
+                              Xem chi tiết ứng tuyển <ExternalLink size={14} />
+                            </span>
                           </div>
-                        </div>
+                        </a>
                       );
                     })}
                   </div>
@@ -1109,45 +1193,42 @@ export default function ProfilePage() {
                       const pct = Math.round(score);
                       const scoreColor = pct >= 80 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : pct >= 50 ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-slate-50 text-slate-600 border-slate-200";
                       return (
-                        <div key={sch.id} className="border border-slate-150 rounded-[1.5rem] p-6 bg-white hover:shadow-xl hover:border-indigo-200 transition-all duration-300 relative group">
+                        <a key={sch.id} href={`/scholarships/${sch.id}`} target="_blank" rel="noopener noreferrer" className="block border border-slate-150 rounded-[1.5rem] p-7 bg-white hover:shadow-xl hover:border-indigo-200 transition-all duration-300 relative group cursor-pointer">
                           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                             <div>
-                              <h4 className="font-extrabold text-slate-800 text-lg leading-tight group-hover:text-indigo-600 transition-colors">
+                              <h4 className="font-extrabold text-slate-800 text-xl leading-tight group-hover:text-indigo-600 transition-colors">
                                 {sch.title}
                               </h4>
-                              <p className="text-sm text-slate-500 font-bold mt-1">{sch.organization} · {sch.country}</p>
+                              <p className="text-base text-slate-500 font-bold mt-1">{sch.organization} · {sch.country}</p>
                             </div>
-                            <span className={`px-3 py-1 text-xs font-black rounded-lg border uppercase tracking-wider shrink-0 ${scoreColor}`}>
+                            <span className={`px-3 py-1.5 text-sm font-black rounded-lg border uppercase tracking-wider shrink-0 ${scoreColor}`}>
                               {pct}% Khớp
                             </span>
                           </div>
 
                           <div className="mb-4">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Lý do gợi ý:</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Lý do gợi ý:</p>
                             <div className="flex flex-wrap gap-2">
                               {sch.match_reasons?.map((reason, idx) => (
-                                <span key={idx} className="text-xs bg-slate-50 text-slate-600 border border-slate-150 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1">
-                                  <CheckCircle2 size={12} className="text-emerald-500 shrink-0" /> {reason}
+                                <span key={idx} className="text-sm bg-slate-50 text-slate-600 border border-slate-150 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1">
+                                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0" /> {reason}
                                 </span>
                               ))}
                               {(!sch.match_reasons || sch.match_reasons.length === 0) && (
-                                <span className="text-xs text-slate-400 font-semibold italic">Gợi ý dựa trên ngành học</span>
+                                <span className="text-sm text-slate-400 font-semibold italic">Gợi ý dựa trên ngành học</span>
                               )}
                             </div>
                           </div>
 
                           <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                            <span className="text-xs font-bold text-slate-400">
+                            <span className="text-sm font-bold text-slate-400">
                               Trị giá: <span className="text-indigo-600 font-black">{sch.amount}</span>
                             </span>
-                            <Link
-                              href={`/scholarships/${sch.id}`}
-                              className="flex items-center gap-1.5 text-indigo-650 hover:text-indigo-500 font-black text-xs transition-colors"
-                            >
-                              Xem chi tiết ứng tuyển <ExternalLink size={12} />
-                            </Link>
+                            <span className="flex items-center gap-1.5 text-indigo-600 group-hover:text-indigo-500 font-black text-sm transition-colors">
+                              Xem chi tiết ứng tuyển <ExternalLink size={14} />
+                            </span>
                           </div>
-                        </div>
+                        </a>
                       );
                     })}
                   </div>
@@ -1163,39 +1244,46 @@ export default function ProfilePage() {
 
           </div>
 
-          {/* C. Cột Phải (35%): AI Integration & Hành động nhanh */}
+          {/* C. Cột Phải (35%): chỉ hiển thị ở tab Hồ sơ cá nhân */}
           <div className="lg:col-span-4 space-y-6">
 
-            {/* Availability Badge */}
-            <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black text-slate-800">Trạng thái sẵn sàng</p>
-                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{availability === "seeking" ? "Đang tìm cơ hội mới" : "Chỉ xem cơ hội phù hợp"}</p>
+            {activeTab === "profile" && (
+            <>
+            {/* Trạng thái sẵn sàng */}
+            <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
+              <h3 className="text-base font-black text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-50 pb-3">
+                <Target size={18} className="text-indigo-500" /> Trạng thái sẵn sàng
+              </h3>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-lg font-black text-slate-900">{availability === "seeking" ? "Đang tìm cơ hội mới" : "Chỉ xem cơ hội phù hợp"}</p>
+                  <p className="text-sm text-slate-400 font-semibold mt-1">Nhấn để thay đổi trạng thái của bạn</p>
+                </div>
+                <button
+                  onClick={() => setAvailability(availability === "seeking" ? "watching" : "seeking")}
+                  className="hover:scale-105 transition-transform shrink-0"
+                >
+                  {availability === "seeking" ? <ToggleRight size={52} className="text-indigo-600" /> : <ToggleLeft size={52} className="text-slate-300" />}
+                </button>
               </div>
-              <button
-                onClick={() => setAvailability(availability === "seeking" ? "watching" : "seeking")}
-                className="text-indigo-600 hover:scale-105 transition-transform"
-              >
-                {availability === "seeking" ? <ToggleRight size={44} className="text-indigo-600" /> : <ToggleLeft size={44} className="text-slate-300" />}
-              </button>
             </div>
 
-            {/* Target Scores - Học bổng */}
+            {/* Ngoại ngữ & chứng chỉ */}
             <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2 flex items-center gap-1.5">
-                <Award size={14} className="text-amber-500" /> Ngoại ngữ
+              <h3 className="text-base font-black text-slate-800 mb-4 border-b border-slate-50 pb-3 flex items-center gap-2">
+                <Award size={18} className="text-amber-500" /> Ngoại ngữ &amp; chứng chỉ
               </h3>
 
               {!isEditing ? (
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-3">
                   {languageScores.map((score, i) => (
-                    <div key={i} className="bg-slate-50 border p-3 rounded-xl">
-                      <span className="text-[10px] text-slate-400 font-bold block mb-1 uppercase">{score.certificate}</span>
-                      <span className="font-extrabold text-slate-700">{score.score || "Chưa đặt"}</span>
+                    <div key={i} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
+                      <span className="text-xs text-slate-400 font-bold block mb-1 uppercase tracking-wide">{score.certificate}</span>
+                      <span className="text-xl font-black text-slate-800">{score.score || "Chưa có"}</span>
                     </div>
                   ))}
                   {languageScores.length === 0 && (
-                    <p className="text-xs text-slate-400 font-bold col-span-2 text-center py-2">Chưa đặt mục tiêu chứng chỉ</p>
+                    <p className="text-sm text-slate-400 font-bold col-span-2 text-center py-2">Chưa có chứng chỉ ngoại ngữ</p>
                   )}
                 </div>
               ) : (
@@ -1210,8 +1298,8 @@ export default function ProfilePage() {
                           copy[i].certificate = e.target.value;
                           setLanguageScores(copy);
                         }}
-                        className="w-1/2 px-3 py-2 bg-slate-50 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold text-xs"
-                        placeholder="Chứng chỉ (VD: IELTS)"
+                        className="w-1/2 px-3 py-2.5 bg-slate-50 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold text-sm"
+                        placeholder="Chứng chỉ, ví dụ: IELTS"
                       />
                       <input
                         type="text"
@@ -1221,7 +1309,7 @@ export default function ProfilePage() {
                           copy[i].score = e.target.value;
                           setLanguageScores(copy);
                         }}
-                        className="w-1/3 px-3 py-2 bg-slate-50 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold text-xs"
+                        className="w-1/3 px-3 py-2.5 bg-slate-50 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold text-sm"
                         placeholder="Điểm"
                       />
                       <button
@@ -1236,13 +1324,15 @@ export default function ProfilePage() {
                   ))}
                   <button
                     onClick={() => setLanguageScores([...languageScores, { certificate: "", score: "" }])}
-                    className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:text-indigo-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 text-slate-500 mt-2"
+                    className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:text-indigo-600 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 text-slate-500 mt-2"
                   >
                     <Plus size={14} /> Thêm ngoại ngữ
                   </button>
                 </div>
               )}
             </div>
+            </>
+            )}
 
           </div>
 

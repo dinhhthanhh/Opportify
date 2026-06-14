@@ -62,6 +62,8 @@ async def get_scholarships(
     field: Optional[str] = None,
     organization: Optional[str] = None,
     deadline_to: Optional[str] = None,
+    min_gpa: Optional[float] = None,
+    language: Optional[str] = None,
     sort_by: str = Query("deadline"),
     order: str = Query("asc"),
     user_id: Optional[str] = None,
@@ -73,17 +75,10 @@ async def get_scholarships(
         return [item.strip().lower() for item in value.split(",") if item.strip()]
 
     query = select(Scholarship)
-    
+
     if q:
-        query = query.where(
-            or_(
-                Scholarship.title.ilike(f"%{q}%"),
-                Scholarship.description.ilike(f"%{q}%"),
-                Scholarship.country.ilike(f"%{q}%"),
-                Scholarship.field.ilike(f"%{q}%"),
-                Scholarship.level.ilike(f"%{q}%")
-            )
-        )
+        # Thanh tìm kiếm chỉ tìm học bổng theo tên
+        query = query.where(Scholarship.title.ilike(f"%{q}%"))
     if country:
         query = query.where(Scholarship.country.ilike(f"%{country}%"))
     if level:
@@ -95,6 +90,18 @@ async def get_scholarships(
         query = query.where(Scholarship.field.ilike(f"%{field}%"))
     if organization:
         query = query.where(Scholarship.organization.ilike(f"%{organization}%"))
+    if min_gpa is not None:
+        # Học bổng yêu cầu GPA <= mức người dùng chọn (chưa đặt yêu cầu thì luôn hiển thị)
+        query = query.where(
+            or_(Scholarship.min_gpa.is_(None), Scholarship.min_gpa <= min_gpa)
+        )
+    if language:
+        query = query.where(
+            or_(
+                Scholarship.language_requirement.ilike(f"%{language}%"),
+                Scholarship.requirements.ilike(f"%{language}%"),
+            )
+        )
     if deadline_to:
         try:
             if "T" in deadline_to:
@@ -111,24 +118,28 @@ async def get_scholarships(
     total_result = await db.execute(count_query)
     total = total_result.scalar()
     
-    # 1. SQL Sorting
+    # 1. SQL Sorting.
+    # Học bổng đã hết hạn LUÔN bị đẩy xuống cuối (với mọi kiểu sort).
+    from sqlalchemy import case
+    current_time = datetime.utcnow()
+    expired_order = case(
+        (Scholarship.deadline.is_(None), 0),
+        (Scholarship.deadline >= current_time, 0),
+        else_=1
+    ).asc()
+
     if sort_by == "deadline":
-        from sqlalchemy import case
-        current_time = datetime.utcnow()
         query = query.order_by(
-            case(
-                (Scholarship.deadline.is_(None), 0),
-                (Scholarship.deadline >= current_time, 0),
-                else_=1
-            ).asc(),
+            expired_order,
             Scholarship.deadline.desc() if order == "desc" else Scholarship.deadline.asc()
         )
     elif sort_by == "value":
-        query = query.order_by(Scholarship.numeric_amount.desc() if order == "desc" else Scholarship.numeric_amount.asc())
-    elif sort_by == "posted_at":
-        query = query.order_by(Scholarship.created_at.desc() if order == "desc" else Scholarship.created_at.asc())
+        query = query.order_by(expired_order, Scholarship.numeric_amount.desc() if order == "desc" else Scholarship.numeric_amount.asc())
     elif sort_by == "competitiveness":
-        query = query.order_by(Scholarship.competitiveness_score.desc() if order == "desc" else Scholarship.competitiveness_score.asc())
+        query = query.order_by(expired_order, Scholarship.competitiveness_score.desc() if order == "desc" else Scholarship.competitiveness_score.asc())
+    elif sort_by != "match_score":
+        # Mặc định ("posted_at"): còn hạn trước, rồi ngày đăng mới nhất.
+        query = query.order_by(expired_order, Scholarship.created_at.desc() if order == "desc" else Scholarship.created_at.asc())
 
     result = await db.execute(query)
     items = result.scalars().all()

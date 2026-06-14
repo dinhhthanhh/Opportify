@@ -20,6 +20,9 @@ build/
 *.swp
 *.swo
 
+# Uploaded files (avatar...)
+backend/uploads/
+
 # OS files
 .DS_Store
 Thumbs.db

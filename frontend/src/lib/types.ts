@@ -16,11 +16,14 @@ export interface Job {
   working_time?: string
   skills: string[]
   job_type: "fulltime" | "parttime" | "remote" | "internship"
+  work_mode?: "onsite" | "hybrid" | "remote"
   experience: "fresher" | "junior" | "mid" | "senior"
   url: string
   source: string
   posted_at: string
   deadline?: string
+  latitude?: string
+  longitude?: string
   match_score?: number
 }
 
@@ -40,6 +43,8 @@ export interface Scholarship {
   application_process?: string
   gender_requirement?: string
   nationality_requirement?: string
+  min_gpa?: number | null
+  language_requirement?: string | null
   website_url?: string
   url: string
   match_score?: number
@@ -75,12 +80,18 @@ export interface UserProfile {
   full_name: string | null
   avatar_url: string | null
   bio: string | null
+  contact_email?: string | null
+  phone?: string | null
+  github_url?: string | null
+  linkedin_url?: string | null
+  portfolio_url?: string | null
   skills: string[]
   experience_years: number
   experience_level: "fresher" | "junior" | "mid" | "senior" | null
   education_level: "bachelor" | "master" | "phd" | null
   education_field: string | null
   university: string | null
+  gpa?: number | null
   preferred_locations: string[]
   preferred_job_types: string[]
   interest_fields: string[]

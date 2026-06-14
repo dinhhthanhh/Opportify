@@ -99,6 +99,15 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    uploadAvatar: (formData: FormData) => {
+      const headers = new Headers();
+      if (typeof window !== "undefined") {
+        const token = localStorage.getItem("access_token");
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+      }
+      return fetch(`${API_URL}/api/v1/profile/avatar`, { method: "POST", body: formData, headers })
+        .then(r => r.json()) as Promise<{ avatar_url: string }>;
+    },
   },
 
   recommend: {

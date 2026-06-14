@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, DateTime, Integer
+from sqlalchemy import Column, String, Text, DateTime, Integer, Float
 from sqlalchemy.dialects.postgresql import UUID
 from db.database import Base
 from datetime import datetime
@@ -25,6 +25,8 @@ class Scholarship(Base):
     application_process = Column(Text)
     gender_requirement = Column(String) # All, Male, Female
     nationality_requirement = Column(String)
+    min_gpa = Column(Float, nullable=True)  # GPA tối thiểu yêu cầu (thang 4.0)
+    language_requirement = Column(String, nullable=True)  # e.g. "IELTS 6.5", "JLPT N2", "TOEFL 90"
     website_url = Column(String)
     url = Column(String(500), unique=True, nullable=False)
     source = Column(String(50))

@@ -1,6 +1,8 @@
+"use client"
 import Link from "next/link"
-import { MapPin, Building, DollarSign, Clock, Calendar, Briefcase } from "lucide-react"
+import { MapPin, DollarSign, Clock, Calendar, Navigation } from "lucide-react"
 import type { Job } from "@/lib/types"
+import { useUserLocation, haversineKm } from "@/components/location/UserLocationContext"
 
 function formatSalary(min?: number, max?: number, currency = "VND") {
   if (!min && !max) return "Thỏa thuận"
@@ -69,7 +71,14 @@ export default function JobCard({ job }: { job: Job }) {
   const companyColor = getCompanyColor(job.company)
   const companyInitial = job.company ? job.company.charAt(0).toUpperCase() : "C"
   const benefits = getHighlightBenefits(job.benefits)
-  
+
+  const { coords } = useUserLocation()
+  const jobLat = job.latitude ? Number(job.latitude) : NaN
+  const jobLon = job.longitude ? Number(job.longitude) : NaN
+  const distanceKm = Number.isFinite(jobLat) && Number.isFinite(jobLon)
+    ? haversineKm(coords.lat, coords.lon, jobLat, jobLon)
+    : null
+
   // Format posted date
   const postedDate = job.posted_at ? new Date(job.posted_at).toLocaleDateString('vi-VN') : null
   const deadlineDate = job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : null
@@ -92,20 +101,20 @@ export default function JobCard({ job }: { job: Job }) {
           
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start gap-2">
-              <h3 className="font-extrabold text-slate-800 text-lg line-clamp-1 group-hover:text-blue-600 transition-colors">
+              <h3 className="font-extrabold text-slate-800 text-xl line-clamp-1 group-hover:text-blue-600 transition-colors">
                 {job.title}
               </h3>
               {isExpired ? (
-                <span className="text-xs bg-red-50 text-red-700 border border-red-100 px-2.5 py-1 rounded-lg font-black shrink-0">
+                <span className="text-sm bg-red-50 text-red-700 border border-red-100 px-2.5 py-1 rounded-lg font-black shrink-0">
                   Đã hết hạn
                 </span>
               ) : job.match_score ? (
-                <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-lg font-black shrink-0">
-                  {Math.round(job.match_score * 100)}% phù hợp
+                <span className="text-sm bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-lg font-black shrink-0">
+                  {Math.round(job.match_score)}% phù hợp
                 </span>
               ) : null}
             </div>
-            <div className="flex items-center gap-1.5 text-slate-500 text-sm mt-1">
+            <div className="flex items-center gap-1.5 text-slate-500 text-base mt-1">
               <span className="font-bold text-slate-700 hover:text-blue-600 transition-colors">{job.company}</span>
               <span className="text-slate-300">•</span>
               <span className="text-slate-500 font-semibold">{job.industry || "Công nghệ thông tin"}</span>
@@ -114,18 +123,24 @@ export default function JobCard({ job }: { job: Job }) {
         </div>
 
         {/* Location & Salary & Type */}
-        <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-600 mb-4">
+        <div className="flex flex-wrap gap-2 text-sm font-bold text-slate-600 mb-4">
           {job.location && (
-            <span className="flex items-center gap-1 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 text-slate-600">
-              <MapPin size={12} className="text-slate-400" />
+            <span className="flex items-center gap-1 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 text-slate-600">
+              <MapPin size={14} className="text-slate-400" />
               {job.location}
             </span>
           )}
-          <span className="flex items-center gap-1 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100 text-emerald-700">
-            <DollarSign size={12} className="text-emerald-500" />
+          {distanceKm !== null && (
+            <span className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 text-blue-700">
+              <Navigation size={14} className="text-blue-500" />
+              Cách bạn ~{distanceKm < 1 ? "<1" : Math.round(distanceKm)} km
+            </span>
+          )}
+          <span className="flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-emerald-700">
+            <DollarSign size={14} className="text-emerald-500" />
             <span>{formatSalary(job.salary_min, job.salary_max, job.salary_currency)}</span>
           </span>
-          <span className={`px-2.5 py-1.5 rounded-lg border uppercase tracking-wider text-[10px] font-black ${jobTypeStyles[job.job_type] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
+          <span className={`px-3 py-1.5 rounded-lg border uppercase tracking-wider text-xs font-black ${jobTypeStyles[job.job_type] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
             {jobTypeLabels[job.job_type] || job.job_type}
           </span>
         </div>
@@ -133,26 +148,26 @@ export default function JobCard({ job }: { job: Job }) {
         {/* Benefits Badges */}
         <div className="flex flex-wrap gap-1.5 mb-4">
           {benefits.map((benefit, i) => (
-            <span key={i} className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100/50 px-2.5 py-1 rounded-lg">
+            <span key={i} className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100/50 px-2.5 py-1 rounded-lg">
               {benefit}
             </span>
           ))}
         </div>
 
         {/* Footer info: Skills & Time */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-50 text-xs font-semibold text-slate-500">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-50 text-sm font-semibold text-slate-500">
           <div className="flex flex-wrap gap-1.5">
             {job.skills && job.skills.length > 0 && job.skills.slice(0, 3).map(skill => (
-              <span key={skill} className="text-[10px] font-bold bg-violet-50 text-violet-700 border border-violet-100 px-2.5 py-0.5 rounded-md">
+              <span key={skill} className="text-xs font-bold bg-violet-50 text-violet-700 border border-violet-100 px-2.5 py-0.5 rounded-md">
                 {skill}
               </span>
             ))}
             {job.skills && job.skills.length > 3 && (
-              <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md">+{job.skills.length - 3}</span>
+              <span className="text-xs font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md">+{job.skills.length - 3}</span>
             )}
           </div>
-          
-          <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+
+          <div className="flex items-center gap-3 text-slate-400 text-xs">
             {postedDate && (
               <span className="flex items-center gap-1">
                 <Clock size={12} /> Đăng: {postedDate}

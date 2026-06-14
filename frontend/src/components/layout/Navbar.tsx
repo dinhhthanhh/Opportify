@@ -2,18 +2,14 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, User, LogOut, ChevronDown, Bell, FileText, Briefcase, UserCircle2, Settings } from "lucide-react";
-import { API_URL, api } from "@/lib/api";
+import { Sparkles, User, LogOut, ChevronDown } from "lucide-react";
+import { api, API_URL } from "@/lib/api";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [user, setUser] = useState<{ name: string, email: string } | null>(null);
+  const [user, setUser] = useState<{ name: string, email: string, avatar?: string | null } | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const notifRef = useRef<HTMLDivElement>(null);
-  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const initApp = async () => {
@@ -23,26 +19,20 @@ export default function Navbar() {
           await api.auth.autoLogin();
         }
 
-        // Auto-login logic
-        const savedUser = localStorage.getItem("opportify_user");
-        if (!savedUser) {
-          const demoUser = { name: "Demo User", email: "demo@opportify.ai" };
-          localStorage.setItem("opportify_user", JSON.stringify(demoUser));
-          setUser(demoUser);
-        } else {
-          setUser(JSON.parse(savedUser));
+        // Lấy hồ sơ user thật để hiển thị tên + avatar đúng
+        const profile = await api.profile.getMe();
+        const localAvatar = localStorage.getItem(`profile_avatar_${profile.id}`);
+        let avatar = localAvatar || profile.avatar_url;
+        if (!localAvatar && avatar && avatar.startsWith("/uploads")) {
+          avatar = `${API_URL}${avatar}`;
         }
-
-        // Fetch notifications
-        const res = await fetch(`${API_URL}/api/v1/applications/notifications`);
-        const data = await res.json();
-        setNotifications(Array.isArray(data) ? data : []);
-
+        setUser({
+          name: profile.full_name || profile.username,
+          email: profile.contact_email || profile.email,
+          avatar,
+        });
       } catch (err) {
         console.error(err);
-        setNotifications([]);
-      } finally {
-        setIsReady(true);
       }
     };
     initApp();
@@ -51,9 +41,6 @@ export default function Navbar() {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
-      }
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setIsNotifOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -68,17 +55,14 @@ export default function Navbar() {
   const navLinks = [
     { name: "Việc làm", href: "/jobs" },
     { name: "Học bổng", href: "/scholarships" },
-    { name: "Chatbot", href: "/chatbot" },
   ];
-
-  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md">
       <div className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
         <Link href="/" className="font-black text-3xl tracking-tighter text-blue-600 flex items-center gap-2">
           <Sparkles size={28} className="text-amber-400 drop-shadow-sm" />
-          Opportify<span className="text-slate-900">.</span>
+          Opportify
         </Link>
 
         <div className="hidden md:flex gap-8 font-semibold text-sm text-slate-600">
@@ -98,48 +82,6 @@ export default function Navbar() {
           {user ? (
             <div className="flex items-center gap-4 pl-4 border-l border-slate-100 relative">
 
-              {/* Notification Bell */}
-              <div className="relative" ref={notifRef}>
-                <button
-                  onClick={() => setIsNotifOpen(!isNotifOpen)}
-                  className="p-2.5 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition relative active:scale-95"
-                >
-                  <Bell size={20} />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                {isNotifOpen && (
-                  <div className="absolute right-0 mt-4 w-80 bg-white rounded-[1.5rem] shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="p-4 border-b border-slate-50 flex justify-between items-center">
-                      <h4 className="font-black text-sm text-slate-900">Thông báo</h4>
-                      <button className="text-[10px] font-bold text-blue-600 uppercase tracking-widest hover:underline">Đánh dấu đã đọc</button>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.length > 0 ? (
-                        notifications.map((n) => (
-                          <div key={n.id} className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer ${!n.is_read ? 'bg-blue-50/30' : ''}`}>
-                            <p className="text-xs font-black text-slate-900 mb-1">{n.title}</p>
-                            <p className="text-[11px] text-slate-500 leading-relaxed">{n.message}</p>
-                            <span className="text-[9px] font-bold text-slate-300 uppercase mt-2 block">
-                              {new Date(n.created_at).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-8 text-center">
-                          <p className="text-xs font-bold text-slate-400 italic">Không có thông báo mới</p>
-                        </div>
-                      )}
-                    </div>
-                    <Link href="/profile/applications" className="block p-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 hover:text-blue-600 transition">Xem tất cả</Link>
-                  </div>
-                )}
-              </div>
-
               {/* User Dropdown */}
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -147,11 +89,16 @@ export default function Navbar() {
                   className="flex items-center gap-3 p-1.5 pl-3 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100 transition active:scale-95"
                 >
                   <div className="hidden sm:flex sm:flex-col sm:items-end">
-                    <span className="text-xs font-black text-slate-900">{user.name}</span>
-                    <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Premium Member</span>
+                    <span className="text-sm font-black text-slate-900">{user.name}</span>
+                    <span className="text-[10px] font-bold text-blue-500 tracking-tight">Xem hồ sơ</span>
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-sm">
-                    <User size={16} />
+                  <div className="w-9 h-9 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-sm overflow-hidden">
+                    {user.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={16} />
+                    )}
                   </div>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
