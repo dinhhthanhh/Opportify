@@ -1,7 +1,6 @@
 import SearchBar from "@/components/search/SearchBar"
 import ScholarshipFilterPanel from "@/components/search/ScholarshipFilterPanel"
 import ScholarshipCard from "@/components/cards/ScholarshipCard"
-import ChatWidget from "@/components/chatbot/ChatWidget"
 import Pagination from "@/components/search/Pagination"
 import { api } from "@/lib/api"
 import { Scholarship } from "@/lib/types"
@@ -38,9 +37,9 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
   }
 
   const sortOptions = [
-    { label: "Hạn nộp (Gần nhất)", value: "deadline", order: "asc" as const },
-    { label: "Giá trị học bổng cao nhất", value: "value", order: "desc" as const },
+    { label: "Hạn nộp gần nhất", value: "deadline", order: "asc" as const },
     { label: "Ngày đăng mới nhất", value: "posted_at", order: "desc" as const },
+    { label: "Giá trị học bổng cao nhất", value: "value", order: "desc" as const },
   ]
 
   return (
@@ -55,7 +54,7 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
           <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter leading-none">
             Săn học bổng <br/><span className="text-indigo-400">Thay đổi tương lai</span>
           </h1>
-          <SearchBar placeholder="Tìm học bổng theo quốc gia, ngành học hoặc bậc học..." />
+          <SearchBar placeholder="Tìm học bổng theo tên..." />
         </div>
       </div>
       
@@ -91,7 +90,6 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
           </div>
         </div>
       </div>
-      <ChatWidget />
     </div>
   )
 }

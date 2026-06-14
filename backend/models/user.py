@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, Float
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from db.database import Base
 from datetime import datetime
@@ -19,6 +19,13 @@ class User(Base):
     avatar_url = Column(String(500), nullable=True)
     bio = Column(Text, nullable=True)
 
+    # Thông tin liên hệ
+    contact_email = Column(String(255), nullable=True)  # email liên hệ do người dùng nhập
+    phone = Column(String(50), nullable=True)
+    github_url = Column(String(500), nullable=True)
+    linkedin_url = Column(String(500), nullable=True)
+    portfolio_url = Column(String(500), nullable=True)
+
     # Kỹ năng & Kinh nghiệm
     skills = Column(ARRAY(String), default=[], server_default='{}')
     experience_years = Column(Integer, nullable=True, default=0)
@@ -30,6 +37,7 @@ class User(Base):
     education_level = Column(String(50), nullable=True)
     education_field = Column(String(255), nullable=True)  # e.g. "Khoa học Máy tính"
     university = Column(String(255), nullable=True)
+    gpa = Column(Float, nullable=True)  # GPA (thang 4.0) — dùng cho lọc/đánh giá học bổng
 
     # Sở thích tìm việc
     preferred_locations = Column(ARRAY(String), default=[], server_default='{}')

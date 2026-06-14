@@ -1,9 +1,9 @@
 import SearchBar from "@/components/search/SearchBar"
 import FilterPanel from "@/components/search/FilterPanel"
 import JobCard from "@/components/cards/JobCard"
-import ChatWidget from "@/components/chatbot/ChatWidget"
 import Pagination from "@/components/search/Pagination"
 import { api } from "@/lib/api"
+import { UserLocationProvider } from "@/components/location/UserLocationContext"
 
 import SortDropdown from "@/components/search/SortDropdown"
 
@@ -51,20 +51,21 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   }
 
   const sortOptions = [
+    { label: "Hạn nộp gần nhất", value: "deadline", order: "asc" as const },
     { label: "Ngày đăng mới nhất", value: "posted_at", order: "desc" as const },
     { label: "Mức lương cao nhất", value: "salary", order: "desc" as const },
-    { label: "Hạn nộp gần nhất", value: "deadline", order: "asc" as const },
   ]
 
   return (
+    <UserLocationProvider>
     <div className="min-h-screen bg-slate-50/50 pb-20">
       <div className="bg-gradient-to-r from-blue-700 to-indigo-800 pt-16 pb-24 px-4 shadow-inner">
         <div className="max-w-6xl mx-auto text-center">
-          <h1 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Tìm công việc & Học bổng <br/><span className="text-blue-200">Mơ ước của bạn</span></h1>
-          <SearchBar placeholder="Tìm kiếm việc làm, kỹ năng, công ty..." />
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">Tìm công việc mơ ước của bạn</h1>
+          <SearchBar placeholder="Tìm kiếm việc làm, công ty..." />
         </div>
       </div>
-      
+
       <div className="max-w-7xl mx-auto px-6 pt-12">
         <div className="flex flex-col md:flex-row gap-8">
           <FilterPanel
@@ -75,12 +76,12 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
           />
           <div className="flex-1">
             <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <p className="text-slate-900 font-extrabold ml-2">
-                Tìm thấy <span className="text-blue-700 font-black text-xl">{total.toLocaleString()}</span> việc làm phù hợp
+              <p className="text-slate-900 font-extrabold ml-2 text-lg">
+                Tìm thấy <span className="text-blue-700 font-black text-2xl">{total.toLocaleString()}</span> việc làm phù hợp
               </p>
-              <SortDropdown options={sortOptions} defaultValue="posted_at" />
+              <SortDropdown options={sortOptions} defaultValue="deadline" />
             </div>
-            
+
             {results.length > 0 ? (
               <>
                 <div className="space-y-4">
@@ -102,7 +103,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
           </div>
         </div>
       </div>
-      <ChatWidget />
     </div>
+    </UserLocationProvider>
   )
 }

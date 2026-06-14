@@ -25,6 +25,7 @@ class Job(Base):
     working_time = Column(String) # e.g. Mon-Fri
     skills = Column(ARRAY(String), default=[])
     job_type = Column(String(50))
+    work_mode = Column(String(50), nullable=True)  # onsite | hybrid | remote
     experience = Column(String(50))
     url = Column(String(500), unique=True, nullable=False)
     source = Column(String(50))

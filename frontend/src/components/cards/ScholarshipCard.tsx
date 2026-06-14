@@ -70,7 +70,12 @@ const coverageLabels: Record<string, string> = {
 export default function ScholarshipCard({ scholarship }: { scholarship: Scholarship }) {
   const orgColor = getOrgColor(scholarship.organization)
   const orgInitial = scholarship.organization ? scholarship.organization.charAt(0).toUpperCase() : "S"
-  const { gpa, ielts, exp, count } = parseScholarshipSpecs(scholarship.requirements, scholarship.level, scholarship.id)
+  const parsed = parseScholarshipSpecs(scholarship.requirements, scholarship.level, scholarship.id)
+  // Ưu tiên dữ liệu thật từ DB nếu có
+  const gpa = scholarship.min_gpa ? `GPA ${scholarship.min_gpa}+` : parsed.gpa
+  const ielts = scholarship.language_requirement ? `${scholarship.language_requirement}+` : parsed.ielts
+  const exp = parsed.exp
+  const count = parsed.count
   const isExpired = scholarship.deadline ? new Date(scholarship.deadline) < new Date() : false
 
   return (

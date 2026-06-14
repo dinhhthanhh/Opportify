@@ -1,16 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from enum import Enum
 from typing import List, Optional
-import uuid
 
 from db.database import get_db
 from db.auth import get_current_user
 from models.user import User
 
 router = APIRouter()
+
+AVATAR_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "avatars")
+ALLOWED_AVATAR_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
 
@@ -29,12 +33,18 @@ class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
     skills: Optional[List[str]] = None
     experience_years: Optional[int] = None
     experience_level: Optional[ExperienceLevel] = None
     education_level: Optional[EducationLevel] = None
     education_field: Optional[str] = None
     university: Optional[str] = None
+    gpa: Optional[float] = None
     preferred_locations: Optional[List[str]] = None
     preferred_job_types: Optional[List[str]] = None
     interest_fields: Optional[List[str]] = None
@@ -48,12 +58,18 @@ def _user_to_profile(u: User) -> dict:
         "full_name": u.full_name,
         "avatar_url": u.avatar_url,
         "bio": u.bio,
+        "contact_email": u.contact_email,
+        "phone": u.phone,
+        "github_url": u.github_url,
+        "linkedin_url": u.linkedin_url,
+        "portfolio_url": u.portfolio_url,
         "skills": u.skills or [],
         "experience_years": u.experience_years or 0,
         "experience_level": u.experience_level,
         "education_level": u.education_level,
         "education_field": u.education_field,
         "university": u.university,
+        "gpa": u.gpa,
         "preferred_locations": u.preferred_locations or [],
         "preferred_job_types": u.preferred_job_types or [],
         "interest_fields": u.interest_fields or [],
@@ -85,6 +101,33 @@ async def update_my_profile(
     await db.commit()
     await db.refresh(current_user)
     return _user_to_profile(current_user)
+
+
+@router.post("/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Tải ảnh đại diện lên, lưu vào thư mục uploads/avatars và cập nhật hồ sơ."""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_AVATAR_EXT:
+        raise HTTPException(status_code=400, detail="Định dạng ảnh không hợp lệ")
+
+    os.makedirs(AVATAR_DIR, exist_ok=True)
+    filename = f"{current_user.id}{ext}"
+    filepath = os.path.join(AVATAR_DIR, filename)
+
+    content = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    # Lưu đường dẫn tương đối; frontend tự ghép với API_URL
+    current_user.avatar_url = f"/uploads/avatars/{filename}"
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return {"avatar_url": current_user.avatar_url}
 
 
 @router.get("/mock-users")
