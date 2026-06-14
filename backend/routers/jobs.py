@@ -63,7 +63,7 @@ async def get_jobs(
             )
         )
     if location:
-        location_value = location.strip().lower()
+        location_list = [loc.strip().lower() for loc in location.split(",") if loc.strip()]
         location_aliases = {
             "ho chi minh": [
                 "ho chi minh",
@@ -78,11 +78,15 @@ async def get_jobs(
             "ha noi": ["ha noi", "hanoi", "hà nội"],
             "da nang": ["da nang", "danang", "đà nẵng"],
         }
-        variants = location_aliases.get(location_value, [location_value])
-        location_filters = [
-            func.lower(Job.location).ilike(f"%{variant}%") for variant in variants
-        ]
-        query = query.where(or_(*location_filters))
+        all_location_filters = []
+        for loc_val in location_list:
+            variants = location_aliases.get(loc_val, [loc_val])
+            location_filters = [
+                func.lower(Job.location).ilike(f"%{variant}%") for variant in variants
+            ]
+            all_location_filters.extend(location_filters)
+        if all_location_filters:
+            query = query.where(or_(*all_location_filters))
     if salary_currency:
         query = query.where(func.lower(Job.salary_currency) == salary_currency.lower())
     if salary_min is not None:

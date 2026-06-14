@@ -43,28 +43,15 @@ export default function ScholarshipFilterPanel() {
   const [coverage, setCoverage] = useState<Set<string>>(new Set())
   const [country, setCountry] = useState("")
   const [field, setField] = useState("")
-  const [organization, setOrganization] = useState("")
+  const [organizations, setOrganizations] = useState<Set<string>>(new Set())
   const [deadlineTo, setDeadlineTo] = useState("")
   const [minGpa, setMinGpa] = useState("")
-  const [language, setLanguage] = useState("")
+  const [languages, setLanguages] = useState<Set<string>>(new Set())
   const [countryOptions, setCountryOptions] = useState<string[]>([])
   const [fieldOptions, setFieldOptions] = useState<string[]>([])
   const [organizationOptions, setOrganizationOptions] = useState<string[]>([])
   const [isLoadingFilters, setIsLoadingFilters] = useState(false)
   const [filtersError, setFiltersError] = useState<string | null>(null)
-
-  // Đồng bộ trạng thái cục bộ từ URL (sau khi đã Áp dụng)
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    setLevel(params.get("level") || "")
-    setCoverage(new Set(parseList(params.get("coverage")).map((item) => item.toLowerCase())))
-    setCountry(params.get("country") || "")
-    setField(params.get("field") || "")
-    setOrganization(params.get("organization") || "")
-    setDeadlineTo(params.get("deadline_to") || "")
-    setMinGpa(params.get("min_gpa") || "")
-    setLanguage(params.get("language") || "")
-  }, [searchParams])
 
   const loadFilters = async () => {
     if (isLoadingFilters || countryOptions.length > 0 || fieldOptions.length > 0 || organizationOptions.length > 0) return
@@ -86,6 +73,24 @@ export default function ScholarshipFilterPanel() {
     }
   }
 
+  // Load filters on mount
+  useEffect(() => {
+    loadFilters()
+  }, [])
+
+  // Đồng bộ trạng thái cục bộ từ URL (sau khi đã Áp dụng)
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    setLevel(params.get("level") || "")
+    setCoverage(new Set(parseList(params.get("coverage")).map((item) => item.toLowerCase())))
+    setCountry(params.get("country") || "")
+    setField(params.get("field") || "")
+    setOrganizations(new Set(parseList(params.get("organization"))))
+    setDeadlineTo(params.get("deadline_to") || "")
+    setMinGpa(params.get("min_gpa") || "")
+    setLanguages(new Set(parseList(params.get("language"))))
+  }, [searchParams])
+
   const toggleCoverage = (value: string) => {
     const next = new Set(coverage)
     if (next.has(value)) next.delete(value)
@@ -104,10 +109,10 @@ export default function ScholarshipFilterPanel() {
     setOrDelete("coverage", Array.from(coverage).join(",") || null)
     setOrDelete("country", country || null)
     setOrDelete("field", field || null)
-    setOrDelete("organization", organization || null)
+    setOrDelete("organization", Array.from(organizations).join(",") || null)
     setOrDelete("deadline_to", deadlineTo || null)
     setOrDelete("min_gpa", minGpa || null)
-    setOrDelete("language", language || null)
+    setOrDelete("language", Array.from(languages).join(",") || null)
     params.set("page", "1")
     router.push(`${pathname}?${params.toString()}`)
   }
@@ -117,10 +122,10 @@ export default function ScholarshipFilterPanel() {
     setCoverage(new Set())
     setCountry("")
     setField("")
-    setOrganization("")
+    setOrganizations(new Set())
     setDeadlineTo("")
     setMinGpa("")
-    setLanguage("")
+    setLanguages(new Set())
     const params = new URLSearchParams(searchParams.toString())
     ;["level", "coverage", "country", "field", "organization", "deadline_to", "min_gpa", "language"].forEach((k) =>
       params.delete(k)
@@ -176,14 +181,26 @@ export default function ScholarshipFilterPanel() {
 
         <div className="space-y-2">
           <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Tổ chức cấp</label>
-          <select value={organization} onChange={(e) => setOrganization(e.target.value)} onFocus={loadFilters} onClick={loadFilters} className={selectClass}>
-            <option value="">Tất cả tổ chức</option>
-            {isLoadingFilters && <option value="">Đang tải...</option>}
-            {!isLoadingFilters && filtersError && <option value="">{filtersError}</option>}
+          {isLoadingFilters && <p className="text-xs text-slate-400">Đang tải tổ chức...</p>}
+          {!isLoadingFilters && filtersError && <p className="text-xs text-rose-500">{filtersError}</p>}
+          <div className="space-y-2.5 text-sm max-h-48 overflow-y-auto pr-1">
             {organizationOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
+              <label key={option} className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={organizations.has(option)}
+                  onChange={() => {
+                    const next = new Set(organizations)
+                    if (next.has(option)) next.delete(option)
+                    else next.add(option)
+                    setOrganizations(next)
+                  }}
+                  className="peer w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer shadow-sm transition-all shrink-0"
+                />
+                <span className="text-slate-600 font-semibold group-hover:text-indigo-650 transition-colors leading-snug">{option}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -198,12 +215,24 @@ export default function ScholarshipFilterPanel() {
 
         <div className="space-y-2">
           <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Chứng chỉ ngoại ngữ</label>
-          <select value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
-            <option value="">Tất cả chứng chỉ</option>
+          <div className="space-y-2.5 text-sm max-h-48 overflow-y-auto pr-1">
             {languageOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
+              <label key={option} className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={languages.has(option)}
+                  onChange={() => {
+                    const next = new Set(languages)
+                    if (next.has(option)) next.delete(option)
+                    else next.add(option)
+                    setLanguages(next)
+                  }}
+                  className="peer w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer shadow-sm transition-all shrink-0"
+                />
+                <span className="text-slate-600 font-semibold group-hover:text-indigo-650 transition-colors leading-snug">{option}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div className="space-y-2">

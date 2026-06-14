@@ -111,12 +111,29 @@ export const api = {
   },
 
   recommend: {
-    jobs: (userId: string) => 
-      apiFetch<RecommendResponse<RecommendedJob>>(`/api/v1/recommend/jobs?user_id=${userId}&limit=12`),
-    scholarships: (userId: string) => 
-      apiFetch<RecommendResponse<RecommendedScholarship>>(`/api/v1/recommend/scholarships?user_id=${userId}&limit=12`),
+    jobs: (userId: string, extra?: { certificates?: string }) => {
+      let url = `/api/v1/recommend/jobs?user_id=${userId}&limit=12`;
+      if (extra?.certificates) {
+        url += `&certificates=${encodeURIComponent(extra.certificates)}`;
+      }
+      return apiFetch<RecommendResponse<RecommendedJob>>(url);
+    },
+    scholarships: (userId: string, extra?: {
+      certificates?: string;
+      research_papers?: string;
+      target_country?: string;
+      target_degree?: string;
+      language_scores?: string;
+    }) => {
+      let url = `/api/v1/recommend/scholarships?user_id=${userId}&limit=12`;
+      if (extra?.certificates) url += `&certificates=${encodeURIComponent(extra.certificates)}`;
+      if (extra?.research_papers) url += `&research_papers=${encodeURIComponent(extra.research_papers)}`;
+      if (extra?.target_country) url += `&target_country=${encodeURIComponent(extra.target_country)}`;
+      if (extra?.target_degree) url += `&target_degree=${encodeURIComponent(extra.target_degree)}`;
+      if (extra?.language_scores) url += `&language_scores=${encodeURIComponent(extra.language_scores)}`;
+      return apiFetch<RecommendResponse<RecommendedScholarship>>(url);
+    },
   },
-  
   ai: {
     chat: (message: string, history: Message[]) =>
       apiFetch<{reply: string}>("/api/v1/ai/chat", {

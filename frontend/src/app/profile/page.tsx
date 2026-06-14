@@ -95,6 +95,10 @@ export default function ProfilePage() {
   const [nationality, setNationality] = useState("");
   const [targetCountry, setTargetCountry] = useState("");
   const [targetDegree, setTargetDegree] = useState("");
+  const [certificates, setCertificates] = useState("");
+  const [researchPapers, setResearchPapers] = useState("");
+  const [profileHardSkills, setProfileHardSkills] = useState<string[]>([]);
+  const [profileAcademicSkills, setProfileAcademicSkills] = useState<string[]>([]);
 
   // Text inputs for edit form comma separation to avoid cursor resets
   const [skillsInput, setSkillsInput] = useState("");
@@ -143,9 +147,8 @@ export default function ProfilePage() {
       preferred_locations: currentUser?.preferred_locations || [],
       preferred_job_types: currentUser?.preferred_job_types || []
     });
-    const cat = categorizeSkills(currentUser?.skills || []);
-    setSkillsInput(cat.hard.join(", "));
-    setAcademicInput(cat.academic.join(", "));
+    setSkillsInput(profileHardSkills.join(", "));
+    setAcademicInput(profileAcademicSkills.join(", "));
     setLocationsInput(currentUser?.preferred_locations?.join(", ") || "");
     setFieldsInput(currentUser?.interest_fields?.join(", ") || "");
   };
@@ -195,7 +198,10 @@ export default function ProfilePage() {
         if (localDataRaw) {
           const localData = JSON.parse(localDataRaw);
           setAvailability(localData.availability || "seeking");
-          setAspirations(localData.aspirations || ["Tìm việc làm Full-time", "Săn học bổng Sau đại học"]);
+          const mappedAspirations = (localData.aspirations || ["Tìm việc làm Full-time", "Săn học bổng Sau đại học"]).map((asp: string) => 
+            asp === "Làm việc tự xa tự do" ? "Làm việc tự do" : asp
+          );
+          setAspirations(mappedAspirations);
 
           if (localData.languageScores) {
             setLanguageScores(localData.languageScores);
@@ -218,6 +224,21 @@ export default function ProfilePage() {
           setNationality(localData.nationality || "Việt Nam");
           setTargetCountry(localData.targetCountry || "");
           setTargetDegree(localData.targetDegree || "");
+          setCertificates(localData.certificates || "");
+          setResearchPapers(localData.researchPapers || "");
+
+          if (localData.hardSkills) {
+            setProfileHardSkills(localData.hardSkills);
+          } else {
+            const cat = categorizeSkills(user.skills || []);
+            setProfileHardSkills(cat.hard);
+          }
+          if (localData.academicSkills) {
+            setProfileAcademicSkills(localData.academicSkills);
+          } else {
+            const cat = categorizeSkills(user.skills || []);
+            setProfileAcademicSkills(cat.academic);
+          }
         } else {
           // Pre-populate with realistic defaults matching database profile
           const initialEdu: EducationMilestone[] = [];
@@ -249,6 +270,15 @@ export default function ProfilePage() {
           ]);
           setEducationHistory(initialEdu);
           setExperienceHistory(initialExp);
+          setNationality("Việt Nam");
+          setTargetCountry("Đức");
+          setTargetDegree("master");
+          setCertificates("AWS Certified Solutions Architect, Google IT Support Certificate");
+          setResearchPapers("A Study on AI-based Job Recommendation Systems (2025), Research on Deep Learning for NLP in HUST Journal (2024)");
+
+          const cat = categorizeSkills(user.skills || []);
+          setProfileHardSkills(cat.hard);
+          setProfileAcademicSkills(cat.academic);
         }
 
         // Fetch matches
@@ -266,10 +296,44 @@ export default function ProfilePage() {
   const fetchRecommendations = async (userId: string) => {
     setLoadingMatch(true);
     try {
-      const jobData = await api.recommend.jobs(userId);
-      setRecommendedJobs(jobData.results?.slice(0, 5) || []);
-      const schData = await api.recommend.scholarships(userId);
-      setRecommendedScholarships(schData.results?.slice(0, 5) || []);
+      const localKey = `profile_mock_${userId}`;
+      const localDataRaw = localStorage.getItem(localKey);
+      let certs = "";
+      let papers = "";
+      let country = "";
+      let degree = "";
+      let langScoresStr = "";
+
+      if (localDataRaw) {
+        const localData = JSON.parse(localDataRaw);
+        certs = localData.certificates || "";
+        papers = localData.researchPapers || "";
+        country = localData.targetCountry || "";
+        degree = localData.targetDegree || "";
+        
+        const langList: LanguageScore[] = localData.languageScores || [];
+        langScoresStr = langList
+          .filter(l => l.certificate && l.score)
+          .map(l => `${l.certificate}:${l.score}`)
+          .join(",");
+      } else {
+        certs = "AWS Certified Solutions Architect, Google IT Support Certificate";
+        papers = "A Study on AI-based Job Recommendation Systems (2025), Research on Deep Learning for NLP in HUST Journal (2024)";
+        country = "Đức";
+        degree = "master";
+        langScoresStr = "IELTS:7.0,TOEFL:95,GRE:310";
+      }
+
+      const jobData = await api.recommend.jobs(userId, { certificates: certs });
+      setRecommendedJobs(jobData.results || []);
+      const schData = await api.recommend.scholarships(userId, {
+        certificates: certs,
+        research_papers: papers,
+        target_country: country,
+        target_degree: degree,
+        language_scores: langScoresStr
+      });
+      setRecommendedScholarships(schData.results || []);
     } catch (e) {
       console.error("Lỗi lấy đề xuất", e);
     } finally {
@@ -288,8 +352,45 @@ export default function ProfilePage() {
       const finalLocations = locationsInput.split(",").map(x => x.trim()).filter(Boolean);
       const finalFields = fieldsInput.split(",").map(x => x.trim()).filter(Boolean);
 
+      // Recalculate experience_level
+      let expLvl = "fresher";
+      const years = parseInt(editData.experience_years as any) || 0;
+      if (years === 0) expLvl = "fresher";
+      else if (years <= 2) expLvl = "junior";
+      else if (years <= 5) expLvl = "mid";
+      else expLvl = "senior";
+
+      // Parse highest CPA/GPA from educationHistory
+      let parsedGpa = 0.0;
+      educationHistory.forEach(edu => {
+        const cpaStr = edu.cpa || edu.gpa;
+        if (cpaStr) {
+          const match = cpaStr.match(/^([\d.,]+)\s*\/\s*([\d.,]+)$/);
+          if (match) {
+            const val = parseFloat(match[1].replace(",", "."));
+            const scale = parseFloat(match[2].replace(",", "."));
+            if (scale > 0) {
+              const normal = scale === 10 ? (val * 4.0 / 10.0) : val;
+              if (normal > parsedGpa) parsedGpa = normal;
+            }
+          } else {
+            const val = parseFloat(cpaStr.replace(",", "."));
+            if (!isNaN(val)) {
+              if (val > 4.0 && val <= 10.0) {
+                const normal = val * 4.0 / 10.0;
+                if (normal > parsedGpa) parsedGpa = normal;
+              } else if (val <= 4.0) {
+                if (val > parsedGpa) parsedGpa = val;
+              }
+            }
+          }
+        }
+      });
+
       const payload = {
         ...editData,
+        experience_level: expLvl as any,
+        gpa: parsedGpa > 0 ? parsedGpa : (editData.gpa || null),
         skills: finalSkills,
         preferred_locations: finalLocations,
         interest_fields: finalFields
@@ -305,6 +406,8 @@ export default function ProfilePage() {
       }
 
       setCurrentUser(updatedUser as UserProfile);
+      setProfileHardSkills(hardSkills);
+      setProfileAcademicSkills(academicSkills);
 
       // 2. Save custom fields to localStorage
       const localKey = `profile_mock_${currentUser.id}`;
@@ -316,7 +419,11 @@ export default function ProfilePage() {
         experienceHistory,
         nationality,
         targetCountry,
-        targetDegree
+        targetDegree,
+        certificates,
+        researchPapers,
+        hardSkills,
+        academicSkills
       };
       localStorage.setItem(localKey, JSON.stringify(mockPayload));
 
@@ -386,6 +493,12 @@ export default function ProfilePage() {
       ]);
     }
 
+    const cat = categorizeSkills(cvAnalysis.skills || []);
+    const mergedHard = Array.from(new Set([...profileHardSkills, ...cat.hard]));
+    const mergedAcademic = Array.from(new Set([...profileAcademicSkills, ...cat.academic]));
+    setSkillsInput(mergedHard.join(", "));
+    setAcademicInput(mergedAcademic.join(", "));
+
     alert("Đã phân tích và trích xuất dữ liệu CV vào form thành công! Hãy nhấn 'Lưu thay đổi' phía dưới để lưu lại.");
     setCvAnalysis(null);
     setCvFile(null);
@@ -426,7 +539,8 @@ export default function ProfilePage() {
     );
   }
 
-  const { hard, academic } = categorizeSkills(currentUser.skills || []);
+  const hard = profileHardSkills;
+  const academic = profileAcademicSkills;
   const completionPct = calculateCompleteness();
   const displayEmail = currentUser.contact_email || currentUser.email;
 
@@ -458,7 +572,6 @@ export default function ProfilePage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <h1 className="text-2xl md:text-3xl font-black tracking-tight">{currentUser.full_name || currentUser.username}</h1>
-                <span className="bg-white/15 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">@{currentUser.username}</span>
               </div>
               <p className="text-indigo-200 text-base font-semibold">{displayEmail}</p>
               <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-bold">
@@ -580,28 +693,11 @@ export default function ProfilePage() {
                     <input type="number" value={editData.experience_years || 0} onChange={e => setEditData({ ...editData, experience_years: parseInt(e.target.value) || 0 })} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
                   </div>
                 </div>
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">CPA (thang điểm 4.0)</label>
-                    <input type="number" step="0.01" min="0" max="4" value={editData.gpa ?? ""} onChange={e => setEditData({ ...editData, gpa: e.target.value === "" ? null : parseFloat(e.target.value) })} placeholder="Ví dụ: 3.4" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
-                  </div>
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Quốc tịch</label>
                     <input type="text" value={nationality} onChange={e => setNationality(e.target.value)} placeholder="VD: Việt Nam" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Bậc học muốn xin học bổng</label>
-                    <select value={targetDegree} onChange={e => setTargetDegree(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none">
-                      <option value="">Chưa chọn</option>
-                      <option value="bachelor">Cử nhân</option>
-                      <option value="master">Thạc sĩ</option>
-                      <option value="phd">Tiến sĩ</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Quốc gia muốn du học (mục tiêu học bổng)</label>
-                  <input type="text" value={targetCountry} onChange={e => setTargetCountry(e.target.value)} placeholder="VD: Nhật Bản, Đức, Hàn Quốc..." className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-semibold focus:ring-indigo-500 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Giới thiệu bản thân</label>
@@ -674,8 +770,104 @@ export default function ProfilePage() {
 
             {activeTab === "profile" && (
               <div className="space-y-8">
+                {/* 0. Thông tin Hồ sơ & Học vấn (View Mode) */}
+                {!isEditing && (
+                  <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100 space-y-6">
+                    <div className="flex items-center gap-3 mb-4 border-b border-slate-50 pb-4">
+                      <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><UserCircle2 size={20} /></div>
+                      <h2 className="text-xl font-black text-slate-800">Thông tin Hồ sơ &amp; Học vấn</h2>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-1">Họ tên hiển thị</p>
+                        <p className="text-base font-extrabold text-slate-800">{currentUser.full_name || currentUser.username}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-1">Đại học / Viện nghiên cứu</p>
+                        <p className="text-base font-extrabold text-slate-800">{currentUser.university || "Chưa cập nhật"}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-3 gap-6">
+                      <div>
+                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-1">Trình độ học vấn</p>
+                        <p className="text-base font-bold text-slate-700 capitalize">{currentUser.education_level ? (EDU_LABELS[currentUser.education_level] || currentUser.education_level) : "Chưa cập nhật"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-1">Ngành học</p>
+                        <p className="text-base font-bold text-slate-700">{currentUser.education_field || "Chưa cập nhật"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-1">Số năm kinh nghiệm</p>
+                        <p className="text-base font-bold text-slate-700">{currentUser.experience_years} năm</p>
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-1">Quốc tịch</p>
+                        <p className="text-base font-bold text-slate-700">{nationality || "Chưa cập nhật"}</p>
+                      </div>
+                    </div>
+
+                    {currentUser.bio && (
+                      <div className="border-t border-slate-50 pt-4">
+                        <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">Giới thiệu bản thân</p>
+                        <p className="text-sm font-medium text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
+                          "{currentUser.bio}"
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="border-t border-slate-100 pt-5">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Thông tin liên hệ</h4>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs font-black text-slate-400 mb-1">Email liên hệ</p>
+                          <p className="text-sm font-semibold text-slate-700">{displayEmail || "Chưa cập nhật"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-400 mb-1">Số điện thoại</p>
+                          <p className="text-sm font-semibold text-slate-700">{currentUser.phone || "Chưa cập nhật"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-400 mb-1">GitHub</p>
+                          {currentUser.github_url ? (
+                            <a href={currentUser.github_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-blue-600 hover:text-blue-500 hover:underline flex items-center gap-1">
+                              Link GitHub <ExternalLink size={12} />
+                            </a>
+                          ) : (
+                            <p className="text-sm text-slate-400">Chưa cập nhật</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-400 mb-1">LinkedIn</p>
+                          {currentUser.linkedin_url ? (
+                            <a href={currentUser.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-blue-600 hover:text-blue-500 hover:underline flex items-center gap-1">
+                              Link LinkedIn <ExternalLink size={12} />
+                            </a>
+                          ) : (
+                            <p className="text-sm text-slate-400">Chưa cập nhật</p>
+                          )}
+                        </div>
+                        <div className="sm:col-span-2">
+                          <p className="text-xs font-black text-slate-400 mb-1">Portfolio</p>
+                          {currentUser.portfolio_url ? (
+                            <a href={currentUser.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-blue-600 hover:text-blue-500 hover:underline flex items-center gap-1">
+                              Link Portfolio <ExternalLink size={12} />
+                            </a>
+                          ) : (
+                            <p className="text-sm text-slate-400">Chưa cập nhật</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* 1. Định hướng Sự nghiệp & Học thuật */}
-                <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100 relative">
+                <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-slate-100 relative">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-bl-[4rem] -z-0 pointer-events-none"></div>
 
                   <div className="flex items-center gap-3 mb-6 relative z-10">
@@ -685,18 +877,10 @@ export default function ProfilePage() {
 
                   {!isEditing ? (
                     <div className="border-2 border-dashed border-slate-150 rounded-2xl p-6 bg-slate-50/30 space-y-5">
-                      <div className="grid sm:grid-cols-3 gap-5">
-                        <div>
-                          <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">CPA</p>
-                          <span className="text-base font-black text-slate-800">{currentUser.gpa ? `${currentUser.gpa}/4.0` : "Chưa cập nhật"}</span>
-                        </div>
+                      <div className="grid sm:grid-cols-1 gap-5">
                         <div>
                           <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">Quốc gia du học mong muốn</p>
                           <span className="text-base font-bold text-slate-700">{targetCountry || "Chưa cập nhật"}</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase text-slate-400 tracking-wider mb-2">Bậc học mục tiêu</p>
-                          <span className="text-base font-bold text-slate-700">{targetDegree ? (EDU_LABELS[targetDegree] || targetDegree) : "Chưa cập nhật"}</span>
                         </div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-5 border-t border-slate-100 pt-4">
@@ -745,7 +929,7 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="grid sm:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Địa điểm mong muốn</label>
                           <p className="text-xs text-slate-400 font-semibold mb-2">Các địa điểm cách nhau bằng dấu phẩy</p>
@@ -768,6 +952,17 @@ export default function ProfilePage() {
                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
                           />
                         </div>
+                        <div>
+                          <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Quốc gia du học mong muốn</label>
+                          <p className="text-xs text-slate-400 font-semibold mb-2">Mục tiêu học bổng</p>
+                          <input
+                            type="text"
+                            value={targetCountry}
+                            onChange={e => setTargetCountry(e.target.value)}
+                            placeholder="VD: Nhật Bản, Đức, Hàn Quốc..."
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -778,7 +973,7 @@ export default function ProfilePage() {
                             "Săn học bổng Sau đại học",
                             "Tìm vị trí Nghiên cứu (Research Assistant)",
                             "Thực tập doanh nghiệp",
-                            "Làm việc tự xa tự do"
+                            "Làm việc tự do"
                           ].map(asp => {
                             const active = aspirations.includes(asp);
                             return (
@@ -1043,21 +1238,33 @@ export default function ProfilePage() {
                     <div className="space-y-6">
                       <div>
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider mb-3">Kỹ năng chuyên môn</h3>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 mb-4">
                           {hard.map(s => (
                             <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-sm font-bold">{s}</span>
                           ))}
                           {hard.length === 0 && <span className="text-slate-400 text-sm">Chưa cập nhật</span>}
                         </div>
+                        {certificates && (
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mt-2">
+                            <span className="text-xs font-black uppercase text-slate-400 tracking-wider block mb-1">Chứng chỉ chuyên môn</span>
+                            <p className="text-sm font-semibold text-slate-700 whitespace-pre-line">{certificates}</p>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider mb-3">Kỹ năng nghiên cứu &amp; học thuật</h3>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 mb-4">
                           {academic.map(s => (
                             <span key={s} className="px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-lg text-sm font-bold">{s}</span>
                           ))}
                           {academic.length === 0 && <span className="text-slate-400 text-sm">Chưa cập nhật</span>}
                         </div>
+                        {researchPapers && (
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mt-2">
+                            <span className="text-xs font-black uppercase text-slate-400 tracking-wider block mb-1">Bài báo &amp; Đề tài nghiên cứu</span>
+                            <p className="text-sm font-semibold text-slate-700 whitespace-pre-line">{researchPapers}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1070,6 +1277,14 @@ export default function ProfilePage() {
                           onChange={e => setSkillsInput(e.target.value)}
                           placeholder="Ví dụ: React, Next.js, Python, SQL, Docker"
                           rows={3}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold mb-3"
+                        />
+                        <label className="block text-sm font-black text-slate-650 mb-1">Chứng chỉ chuyên môn</label>
+                        <textarea
+                          value={certificates}
+                          onChange={e => setCertificates(e.target.value)}
+                          placeholder="Ví dụ: AWS Certified Solutions Architect, Google IT Support Certificate"
+                          rows={2}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold"
                         />
                       </div>
@@ -1081,6 +1296,14 @@ export default function ProfilePage() {
                           onChange={e => setAcademicInput(e.target.value)}
                           placeholder="Ví dụ: Viết báo khoa học, Phân tích thống kê, Phương pháp nghiên cứu"
                           rows={3}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold mb-3"
+                        />
+                        <label className="block text-sm font-black text-slate-650 mb-1">Bài báo &amp; Đề tài nghiên cứu</label>
+                        <textarea
+                          value={researchPapers}
+                          onChange={e => setResearchPapers(e.target.value)}
+                          placeholder="Ví dụ: A Study on AI-based Job Recommendation Systems (2025)"
+                          rows={2}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-semibold"
                         />
                       </div>

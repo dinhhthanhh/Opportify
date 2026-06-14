@@ -63,7 +63,7 @@ export default function FilterPanel({
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const [location, setLocation] = useState("")
+  const [locations, setLocations] = useState<Set<string>>(new Set())
   const [locationOptions, setLocationOptions] = useState<string[]>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
@@ -82,23 +82,6 @@ export default function FilterPanel({
     () => new Intl.NumberFormat("vi-VN", { style: "currency", currency: salaryCurrency, maximumFractionDigits: 0 }),
     [salaryCurrency]
   )
-
-  // Đồng bộ trạng thái cục bộ từ URL (sau khi đã Áp dụng)
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    const parsedSalary = Number(params.get("salary_min"))
-
-    setLocation(params.get("location") || "")
-    if (Number.isNaN(parsedSalary)) {
-      setSalaryMin(salaryMinLimit)
-    } else {
-      setSalaryMin(parsedSalary)
-    }
-    setJobTypes(new Set(parseList(params.get("job_type")).map((item) => item.toLowerCase())))
-    setExperiences(new Set(parseList(params.get("experience")).map((item) => item.toLowerCase())))
-    setIndustries(new Set(parseList(params.get("industry"))))
-    setWorkModes(new Set(parseList(params.get("work_mode")).map((item) => item.toLowerCase())))
-  }, [searchParams, salaryMinLimit])
 
   const loadLocations = async () => {
     if (isLoadingLocations || locationOptions.length > 0) return
@@ -119,6 +102,28 @@ export default function FilterPanel({
     }
   }
 
+  // Load locations on mount
+  useEffect(() => {
+    loadLocations()
+  }, [])
+
+  // Đồng bộ trạng thái cục bộ từ URL (sau khi đã Áp dụng)
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    const parsedSalary = Number(params.get("salary_min"))
+
+    setLocations(new Set(parseList(params.get("location"))))
+    if (Number.isNaN(parsedSalary)) {
+      setSalaryMin(salaryMinLimit)
+    } else {
+      setSalaryMin(parsedSalary)
+    }
+    setJobTypes(new Set(parseList(params.get("job_type")).map((item) => item.toLowerCase())))
+    setExperiences(new Set(parseList(params.get("experience")).map((item) => item.toLowerCase())))
+    setIndustries(new Set(parseList(params.get("industry"))))
+    setWorkModes(new Set(parseList(params.get("work_mode")).map((item) => item.toLowerCase())))
+  }, [searchParams, salaryMinLimit])
+
   const toggleListValue = (current: Set<string>, value: string) => {
     const next = new Set(current)
     if (next.has(value)) {
@@ -137,7 +142,7 @@ export default function FilterPanel({
       else params.delete(key)
     }
 
-    setOrDelete("location", location || null)
+    setOrDelete("location", Array.from(locations).join(",") || null)
     setOrDelete("salary_min", salaryMin > 0 ? salaryMin.toString() : null)
     setOrDelete("salary_currency", salaryMin > 0 ? salaryCurrency : null)
     setOrDelete("job_type", Array.from(jobTypes).join(",") || null)
@@ -150,7 +155,7 @@ export default function FilterPanel({
   }
 
   const clearFilters = () => {
-    setLocation("")
+    setLocations(new Set())
     setSalaryMin(salaryMinLimit)
     setJobTypes(new Set())
     setExperiences(new Set())
@@ -193,25 +198,23 @@ export default function FilterPanel({
 
         <div>
           <h3 className="font-medium text-sm text-slate-700 mb-3 block">Địa điểm</h3>
-          <select
-            id="job-location"
-            name="location"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            onFocus={loadLocations}
-            onClick={loadLocations}
-            onMouseDown={loadLocations}
-            className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none hover:bg-white transition-colors cursor-pointer"
-          >
-            <option value="">Tất cả địa điểm</option>
-            {isLoadingLocations && <option value="">Đang tải...</option>}
-            {!isLoadingLocations && locationOptions.length === 0 && locationError && (
-              <option value="">{locationError}</option>
-            )}
+          {isLoadingLocations && <p className="text-xs text-slate-400">Đang tải địa điểm...</p>}
+          {!isLoadingLocations && locationOptions.length === 0 && locationError && (
+            <p className="text-xs text-rose-500">{locationError}</p>
+          )}
+          <div className="space-y-2.5 text-sm max-h-48 overflow-y-auto pr-1">
             {locationOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
+              <label key={option} className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={locations.has(option)}
+                  onChange={() => setLocations(toggleListValue(locations, option))}
+                  className="peer w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500 focus:ring-offset-0 cursor-pointer shadow-sm transition-all shrink-0"
+                />
+                <span className="text-slate-600 font-medium group-hover:text-slate-900 transition-colors leading-snug">{option}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>

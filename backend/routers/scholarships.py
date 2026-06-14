@@ -89,19 +89,23 @@ async def get_scholarships(
     if field:
         query = query.where(Scholarship.field.ilike(f"%{field}%"))
     if organization:
-        query = query.where(Scholarship.organization.ilike(f"%{organization}%"))
+        org_list = [org.strip().lower() for org in organization.split(",") if org.strip()]
+        if org_list:
+            org_filters = [Scholarship.organization.ilike(f"%{org}%") for org in org_list]
+            query = query.where(or_(*org_filters))
     if min_gpa is not None:
         # Học bổng yêu cầu GPA <= mức người dùng chọn (chưa đặt yêu cầu thì luôn hiển thị)
         query = query.where(
             or_(Scholarship.min_gpa.is_(None), Scholarship.min_gpa <= min_gpa)
         )
     if language:
-        query = query.where(
-            or_(
-                Scholarship.language_requirement.ilike(f"%{language}%"),
-                Scholarship.requirements.ilike(f"%{language}%"),
-            )
-        )
+        lang_list = [lang.strip().lower() for lang in language.split(",") if lang.strip()]
+        if lang_list:
+            lang_filters = []
+            for lang in lang_list:
+                lang_filters.append(Scholarship.language_requirement.ilike(f"%{lang}%"))
+                lang_filters.append(Scholarship.requirements.ilike(f"%{lang}%"))
+            query = query.where(or_(*lang_filters))
     if deadline_to:
         try:
             if "T" in deadline_to:
@@ -154,7 +158,7 @@ async def get_scholarships(
             if user:
                 scored = []
                 for s in items:
-                    edu_score = _edu_scholarship_score(user.education_level, s.level)
+                    edu_score, _ = _edu_scholarship_score(user.education_level, s.level)
                     field_score = 0.0
                     if user.interest_fields and s.field:
                         s_field_lower = s.field.lower()
