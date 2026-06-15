@@ -118,7 +118,7 @@ async def seed():
                 existing_user = existing.scalar_one_or_none()
                 if existing_user:
                     print(f"  ⚠️  Đã tồn tại: {data['email']}")
-                    if "avatar_url" in data and not existing_user.avatar_url:
+                    if "avatar_url" in data:
                         existing_user.avatar_url = data["avatar_url"]
                         session.add(existing_user)
                         print(f"  🔄 Đã cập nhật avatar_url cho: {data['email']}")
