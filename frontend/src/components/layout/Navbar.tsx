@@ -30,8 +30,10 @@ export default function Navbar() {
       try {
         const token = localStorage.getItem("access_token");
         if (!token) {
-          await api.auth.autoLogin();
-          await fetchProfile();
+          if (window.location.pathname !== "/auth/login" && window.location.pathname !== "/auth/register") {
+            await api.auth.autoLogin();
+            await fetchProfile();
+          }
         } else {
           try {
             await fetchProfile();
@@ -122,7 +124,14 @@ export default function Navbar() {
                       <Sparkles size={18} className="text-amber-400" /> Hồ sơ năng lực
                     </Link>
                     <div className="h-px bg-slate-50 my-2" />
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition">
+                    <button 
+                      onClick={() => {
+                        localStorage.removeItem("access_token");
+                        localStorage.removeItem("guest_id");
+                        window.location.href = "/auth/login";
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition"
+                    >
                       <LogOut size={18} /> Đăng xuất
                     </button>
                   </div>

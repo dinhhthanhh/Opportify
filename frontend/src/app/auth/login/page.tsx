@@ -10,9 +10,16 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    // Simulated login logic
-    console.log("Login with:", email, password)
-    alert("Đăng nhập thành công! (Simulated)")
+    
+    if (email.includes("an.nguyen")) {
+      localStorage.setItem("guest_id", "owner");
+    } else {
+      localStorage.setItem("guest_id", email.split('@')[0]);
+    }
+    
+    // Xóa token cũ để Navbar tự động fetch lại token mới qua autoLogin
+    localStorage.removeItem("access_token");
+    window.location.href = "/";
   }
 
   return (

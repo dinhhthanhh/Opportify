@@ -35,6 +35,35 @@ async def register(user_in: UserRegister, db: AsyncSession = Depends(get_db)):
         username=user_in.username,
         hashed_password=get_password_hash(user_in.password)
     )
+
+    # Nếu là tài khoản guest, copy profile từ an_nguyen để làm dữ liệu mẫu
+    if user_in.email.startswith("guest_"):
+        template_query = select(User).where(User.username == "an_nguyen")
+        template_res = await db.execute(template_query)
+        template_user = template_res.scalar_one_or_none()
+        
+        if template_user:
+            new_user.full_name = template_user.full_name
+            new_user.avatar_url = template_user.avatar_url
+            new_user.bio = template_user.bio
+            new_user.contact_email = template_user.contact_email
+            new_user.phone = template_user.phone
+            new_user.github_url = template_user.github_url
+            new_user.linkedin_url = template_user.linkedin_url
+            new_user.portfolio_url = template_user.portfolio_url
+            new_user.skills = list(template_user.skills) if template_user.skills else []
+            new_user.experience_years = template_user.experience_years
+            new_user.experience_level = template_user.experience_level
+            new_user.education_level = template_user.education_level
+            new_user.education_field = template_user.education_field
+            new_user.university = template_user.university
+            new_user.gpa = template_user.gpa
+            new_user.preferred_locations = list(template_user.preferred_locations) if template_user.preferred_locations else []
+            new_user.preferred_job_types = list(template_user.preferred_job_types) if template_user.preferred_job_types else []
+            new_user.interest_fields = list(template_user.interest_fields) if template_user.interest_fields else []
+            new_user.latitude = template_user.latitude
+            new_user.longitude = template_user.longitude
+
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)

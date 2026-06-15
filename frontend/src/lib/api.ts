@@ -26,8 +26,15 @@ export const api = {
     autoLogin: async () => {
       if (typeof window === "undefined") return;
 
-      const email = "an.nguyen@mock.opportify";
-      const username = "an_nguyen";
+      let guestId = localStorage.getItem("guest_id");
+      if (!guestId) {
+        guestId = Math.random().toString(36).substring(2, 10);
+        localStorage.setItem("guest_id", guestId);
+      }
+
+      const isOwner = guestId === "owner";
+      const email = isOwner ? "an.nguyen@mock.opportify" : `guest_${guestId}@mock.opportify`;
+      const username = isOwner ? "an_nguyen" : `guest_${guestId}`;
       const password = "mock1234";
 
       // Form data chuẩn OAuth2
