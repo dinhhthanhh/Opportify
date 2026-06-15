@@ -43,7 +43,7 @@ async def register(user_in: UserRegister, db: AsyncSession = Depends(get_db)):
         template_user = template_res.scalar_one_or_none()
         
         if template_user:
-            new_user.full_name = template_user.full_name
+            new_user.full_name = "Guest"
             new_user.avatar_url = template_user.avatar_url
             new_user.bio = template_user.bio
             new_user.contact_email = template_user.contact_email
