@@ -26,6 +26,7 @@ MOCK_USERS = [
         "username": "an_nguyen",
         "password": "mock1234",
         "full_name": "Nguyễn Minh An",
+        "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=an_nguyen",
         "bio": "Sinh viên năm 4 Công nghệ Thông tin, đam mê AI và Machine Learning. Tìm kiếm internship hoặc fresher job.",
         "skills": ["Python", "TensorFlow", "PyTorch", "Machine Learning", "Data Analysis", "SQL", "Git"],
         "experience_years": 0,
@@ -114,8 +115,13 @@ async def seed():
                 existing = await session.execute(
                     select(User).where(User.email == data["email"])
                 )
-                if existing.scalar_one_or_none():
+                existing_user = existing.scalar_one_or_none()
+                if existing_user:
                     print(f"  ⚠️  Đã tồn tại: {data['email']}")
+                    if "avatar_url" in data and not existing_user.avatar_url:
+                        existing_user.avatar_url = data["avatar_url"]
+                        session.add(existing_user)
+                        print(f"  🔄 Đã cập nhật avatar_url cho: {data['email']}")
                     skipped += 1
                     continue
 
@@ -126,6 +132,7 @@ async def seed():
                     hashed_password=get_password_hash(data["password"]),
                     is_active=True,
                     full_name=data["full_name"],
+                    avatar_url=data.get("avatar_url"),
                     bio=data["bio"],
                     skills=data["skills"],
                     experience_years=data["experience_years"],
