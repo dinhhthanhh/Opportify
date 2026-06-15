@@ -123,19 +123,27 @@ export default function ProfilePage() {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentUser) return;
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const { avatar_url } = await api.profile.uploadAvatar(formData);
-      // Đường dẫn tương đối từ server -> ghép với API_URL, thêm tham số chống cache
-      const fullUrl = `${API_URL}${avatar_url}?t=${Date.now()}`;
-      setCurrentUser(prev => prev ? { ...prev, avatar_url: fullUrl } : null);
-      setEditData(prev => ({ ...prev, avatar_url }));
-      localStorage.setItem(`profile_avatar_${currentUser.id}`, fullUrl);
-    } catch (err) {
-      console.error("Tải ảnh lên thất bại", err);
-      alert("Tải ảnh lên thất bại. Vui lòng thử lại.");
-    }
+    
+    // Read the file as Base64 so we can persist it locally
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Url = event.target?.result as string;
+      
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const { avatar_url } = await api.profile.uploadAvatar(formData);
+        
+        setCurrentUser(prev => prev ? { ...prev, avatar_url: base64Url } : null);
+        setEditData(prev => ({ ...prev, avatar_url })); // save the remote relative path to backend
+        localStorage.setItem(`profile_avatar_${currentUser.id}`, base64Url); // save base64 locally
+      } catch (err) {
+        console.error("Tải ảnh lên thất bại trên server, nhưng vẫn sẽ lưu tại local", err);
+        setCurrentUser(prev => prev ? { ...prev, avatar_url: base64Url } : null);
+        localStorage.setItem(`profile_avatar_${currentUser.id}`, base64Url);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleStartEditing = () => {
