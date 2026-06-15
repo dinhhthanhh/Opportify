@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Sparkles, Brain, Target, AlertCircle, Lightbulb, Zap } from "lucide-react"
-import { API_URL } from "@/lib/api"
+import { api, API_URL } from "@/lib/api"
 
 interface AIInsightCardProps {
   itemId: string
