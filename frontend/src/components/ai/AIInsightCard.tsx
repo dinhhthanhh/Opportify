@@ -16,13 +16,50 @@ export default function AIInsightCard({ itemId, itemType }: AIInsightCardProps) 
   useEffect(() => {
     async function fetchInsight() {
       try {
+        const user = await api.profile.getMe()
+        if (!user) return
+
+        const localKey = `profile_mock_${user.id}`
+        const localDataRaw = localStorage.getItem(localKey)
+        let certs = "", papers = "", country = "", degree = "", langScoresStr = ""
+
+        if (localDataRaw) {
+          const localData = JSON.parse(localDataRaw)
+          certs = localData.certificates || ""
+          papers = localData.researchPapers || ""
+          country = localData.targetCountry || ""
+          degree = localData.targetDegree || ""
+          const langList: any[] = localData.languageScores || []
+          langScoresStr = langList.filter(l => l.certificate && l.score).map(l => `${l.certificate}:${l.score}`).join(",")
+        }
+
+        const stamp = localStorage.getItem(`profile_stamp_${user.id}`) || "0"
+        const cacheKey = `insight_${user.id}_${itemId}_${stamp}`
+        
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          setInsight(JSON.parse(cached))
+          setLoading(false)
+          return
+        }
+
         const response = await fetch(`${API_URL}/api/v1/ai/insight`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ item_id: itemId, item_type: itemType })
+          body: JSON.stringify({ 
+            item_id: itemId, 
+            item_type: itemType,
+            user_id: user.id,
+            certificates: certs,
+            research_papers: papers,
+            target_country: country,
+            target_degree: degree,
+            language_scores: langScoresStr
+          })
         })
         const data = await response.json()
         setInsight(data)
+        localStorage.setItem(cacheKey, JSON.stringify(data))
       } catch (error) {
         console.error("Failed to fetch AI insight:", error)
       } finally {

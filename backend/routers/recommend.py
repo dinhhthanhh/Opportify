@@ -428,6 +428,37 @@ async def _get_user(user_id: str, db: AsyncSession) -> User:
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
+def calculate_job_match(user: User, job: Job, certificates: Optional[str] = None) -> tuple[float, list[str]]:
+    # 1. Skills overlap (max 35)
+    raw_skills_score, matched_skills = _skills_overlap_score(user.skills, job.skills or [])
+    skills_score = (raw_skills_score / 50.0) * 35.0
+    
+    # 2. Level match (max 15)
+    raw_lvl_score, lvl_reason = _level_score(user.experience_level, job.experience)
+    lvl_score = (raw_lvl_score / 20.0) * 15.0
+    
+    # 3. Location match (max 15, can go negative)
+    raw_loc_score, loc_reason = _location_score(user.preferred_locations, job.location)
+    loc_score = (raw_loc_score / 15.0) * 15.0 if raw_loc_score >= 0 else raw_loc_score
+    
+    # 4. Job Type match (max 10, can go negative)
+    raw_jt_score, jt_reason = _jobtype_score(user.preferred_job_types, job.job_type)
+    jt_score = (raw_jt_score / 10.0) * 10.0 if raw_jt_score >= 0 else raw_jt_score
+    
+    # 5. Industry match (max 15, can go negative)
+    raw_ind_score, ind_reason = _industry_match_score(user.interest_fields, job.industry)
+    ind_score = raw_ind_score
+    
+    # 6. Certificates match (max 10)
+    cert_score, matched_certs = _certificates_score(certificates, job.description, job.requirements)
+
+    score = skills_score + lvl_score + loc_score + jt_score + ind_score + cert_score
+    # Enforce range [0.0, 100.0]
+    score = max(0.0, min(score, 100.0))
+    
+    reasons = _build_match_reasons(matched_skills, lvl_reason, loc_reason, jt_reason, matched_certs, ind_reason)
+    return score, reasons
+
 @router.get("/jobs")
 async def recommend_jobs(
     user_id: str = Query(..., description="UUID của user muốn lấy gợi ý"),
@@ -445,34 +476,7 @@ async def recommend_jobs(
 
     scored = []
     for job in jobs:
-        # 1. Skills overlap (max 35)
-        raw_skills_score, matched_skills = _skills_overlap_score(user.skills, job.skills or [])
-        skills_score = (raw_skills_score / 50.0) * 35.0
-        
-        # 2. Level match (max 15)
-        raw_lvl_score, lvl_reason = _level_score(user.experience_level, job.experience)
-        lvl_score = (raw_lvl_score / 20.0) * 15.0
-        
-        # 3. Location match (max 15, can go negative)
-        raw_loc_score, loc_reason = _location_score(user.preferred_locations, job.location)
-        loc_score = (raw_loc_score / 15.0) * 15.0 if raw_loc_score >= 0 else raw_loc_score
-        
-        # 4. Job Type match (max 10, can go negative)
-        raw_jt_score, jt_reason = _jobtype_score(user.preferred_job_types, job.job_type)
-        jt_score = (raw_jt_score / 10.0) * 10.0 if raw_jt_score >= 0 else raw_jt_score
-        
-        # 5. Industry match (max 15, can go negative)
-        raw_ind_score, ind_reason = _industry_match_score(user.interest_fields, job.industry)
-        ind_score = raw_ind_score
-        
-        # 6. Certificates match (max 10)
-        cert_score, matched_certs = _certificates_score(certificates, job.description, job.requirements)
-
-        score = skills_score + lvl_score + loc_score + jt_score + ind_score + cert_score
-        # Enforce range [0.0, 100.0]
-        score = max(0.0, min(score, 100.0))
-        
-        reasons = _build_match_reasons(matched_skills, lvl_reason, loc_reason, jt_reason, matched_certs, ind_reason)
+        score, reasons = calculate_job_match(user, job, certificates)
         scored.append((score, job, reasons))
 
     # Sắp xếp
@@ -493,6 +497,41 @@ async def recommend_jobs(
         "results": [_job_to_dict(job, score, reasons) for score, job, reasons in top],
     }
 
+
+def calculate_scholarship_match(
+    user: User, 
+    s: Scholarship, 
+    target_degree: Optional[str] = None, 
+    target_country: Optional[str] = None,
+    certificates: Optional[str] = None,
+    research_papers: Optional[str] = None,
+    language_scores: Optional[str] = None
+) -> tuple[float, list[str]]:
+    edu_score, edu_reason = _edu_scholarship_score(user.education_level, s.level, target_degree)
+    raw_field_score, field_reason = _field_interest_score(user.interest_fields, s.field)
+    field_score = (raw_field_score / 35.0) * 25.0
+    raw_edufield_score, edufield_reason = _edu_field_score(user.education_field, s.field)
+    edufield_score = (raw_edufield_score / 20.0) * 15.0
+    ctry_score, ctry_reason = _country_score_updated(user.preferred_locations, target_country, s.country)
+    raw_gpa_score, gpa_reason = _gpa_score(user.gpa, s.min_gpa)
+    gpa_score = (raw_gpa_score / 10.0) * 10.0 if raw_gpa_score >= 0 else raw_gpa_score
+    raw_lang_score, lang_reason = _language_score(language_scores, s.language_requirement)
+    lang_score = (raw_lang_score / 10.0) * 10.0 if raw_lang_score >= 0 else raw_lang_score
+    research_score, research_reason = _research_papers_score(research_papers, s.title, s.description, s.requirements, s.level)
+
+    score = edu_score + field_score + edufield_score + ctry_score + gpa_score + lang_score + research_score
+    score = max(0.0, min(score, 100.0))
+
+    reasons = []
+    if edu_reason: reasons.append(edu_reason)
+    if field_reason: reasons.append(field_reason)
+    if edufield_reason: reasons.append(edufield_reason)
+    if ctry_reason: reasons.append(ctry_reason)
+    if gpa_reason: reasons.append(gpa_reason)
+    if lang_reason: reasons.append(lang_reason)
+    if research_reason: reasons.append(research_reason)
+
+    return score, reasons
 
 @router.get("/scholarships")
 async def recommend_scholarships(
@@ -515,37 +554,9 @@ async def recommend_scholarships(
 
     scored = []
     for s in scholarships:
-        edu_score, edu_reason = _edu_scholarship_score(user.education_level, s.level, target_degree)
-        raw_field_score, field_reason = _field_interest_score(user.interest_fields, s.field)
-        field_score = (raw_field_score / 35.0) * 25.0
-        raw_edufield_score, edufield_reason = _edu_field_score(user.education_field, s.field)
-        edufield_score = (raw_edufield_score / 20.0) * 15.0
-        ctry_score, ctry_reason = _country_score_updated(user.preferred_locations, target_country, s.country)
-        raw_gpa_score, gpa_reason = _gpa_score(user.gpa, s.min_gpa)
-        gpa_score = (raw_gpa_score / 10.0) * 10.0 if raw_gpa_score >= 0 else raw_gpa_score
-        raw_lang_score, lang_reason = _language_score(language_scores, s.language_requirement)
-        lang_score = (raw_lang_score / 10.0) * 10.0 if raw_lang_score >= 0 else raw_lang_score
-        research_score, research_reason = _research_papers_score(research_papers, s.title, s.description, s.requirements, s.level)
-
-        score = edu_score + field_score + edufield_score + ctry_score + gpa_score + lang_score + research_score
-        score = max(0.0, min(score, 100.0))
-
-        reasons = []
-        if edu_reason:
-            reasons.append(edu_reason)
-        if field_reason:
-            reasons.append(field_reason)
-        if edufield_reason:
-            reasons.append(edufield_reason)
-        if ctry_reason:
-            reasons.append(ctry_reason)
-        if gpa_reason:
-            reasons.append(gpa_reason)
-        if lang_reason:
-            reasons.append(lang_reason)
-        if research_reason:
-            reasons.append(research_reason)
-
+        score, reasons = calculate_scholarship_match(
+            user, s, target_degree, target_country, certificates, research_papers, language_scores
+        )
         scored.append((score, s, reasons))
 
     # Sắp xếp

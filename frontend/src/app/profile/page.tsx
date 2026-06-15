@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import {
   UserCircle2, Briefcase, GraduationCap, Star, MapPin,
   Code2, ChevronRight, ExternalLink, Award, Calendar,
-  Zap, Target, RefreshCw, CheckCircle2, Upload, Loader, FileText, Pencil, Save, X, ToggleLeft, ToggleRight, Sparkles, CheckSquare, Plus, Trash2
+  Zap, Target, RefreshCw, CheckCircle2, Upload, Loader, FileText, Pencil, Save, X, ToggleLeft, ToggleRight, Sparkles, CheckSquare, Plus, Trash2, AlertCircle
 } from "lucide-react";
 import { UserProfile, RecommendedJob, RecommendedScholarship } from "@/lib/types";
 import { api, API_URL } from "@/lib/api";
@@ -437,6 +437,7 @@ export default function ProfilePage() {
         academicSkills
       };
       localStorage.setItem(localKey, JSON.stringify(mockPayload));
+      localStorage.setItem(`profile_stamp_${currentUser.id}`, Date.now().toString());
 
       setIsEditing(false);
 
@@ -1367,11 +1368,14 @@ export default function ProfilePage() {
                           <div className="mb-4">
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Lý do gợi ý:</p>
                             <div className="flex flex-wrap gap-2">
-                              {job.match_reasons?.map((reason, idx) => (
-                                <span key={idx} className="text-sm bg-slate-50 text-slate-600 border border-slate-150 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1">
-                                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0" /> {reason}
+                              {job.match_reasons?.map((reason, idx) => {
+                                const isNeg = reason.toLowerCase().includes("khác") || reason.toLowerCase().includes("chưa") || reason.toLowerCase().includes("không");
+                                return (
+                                <span key={idx} className={`text-sm border px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 ${isNeg ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-slate-50 text-slate-600 border-slate-150"}`}>
+                                  {isNeg ? <AlertCircle size={14} className="text-orange-500 shrink-0" /> : <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />} {reason}
                                 </span>
-                              ))}
+                                );
+                              })}
                               {(!job.match_reasons || job.match_reasons.length === 0) && (
                                 <span className="text-sm text-slate-400 font-semibold italic">Gợi ý dựa trên hồ sơ chung</span>
                               )}
@@ -1443,11 +1447,14 @@ export default function ProfilePage() {
                           <div className="mb-4">
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Lý do gợi ý:</p>
                             <div className="flex flex-wrap gap-2">
-                              {sch.match_reasons?.map((reason, idx) => (
-                                <span key={idx} className="text-sm bg-slate-50 text-slate-600 border border-slate-150 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1">
-                                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0" /> {reason}
+                              {sch.match_reasons?.map((reason, idx) => {
+                                const isNeg = reason.toLowerCase().includes("khác") || reason.toLowerCase().includes("chưa") || reason.toLowerCase().includes("không");
+                                return (
+                                <span key={idx} className={`text-sm border px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 ${isNeg ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-slate-50 text-slate-600 border-slate-150"}`}>
+                                  {isNeg ? <AlertCircle size={14} className="text-orange-500 shrink-0" /> : <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />} {reason}
                                 </span>
-                              ))}
+                                );
+                              })}
                               {(!sch.match_reasons || sch.match_reasons.length === 0) && (
                                 <span className="text-sm text-slate-400 font-semibold italic">Gợi ý dựa trên ngành học</span>
                               )}
