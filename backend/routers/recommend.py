@@ -97,11 +97,19 @@ def _location_score(preferred: list[str] | None, item_location: str | None) -> t
     # Không khớp địa điểm -> Phạt
     return -15.0, f"Địa điểm ({item_location}) không khớp mong muốn"
 
-def _industry_match_score(user_interests: list[str] | None, job_industry: str | None) -> tuple[float, str | None]:
+def _industry_match_score(user_interests: list[str] | None, job_industry: str | None, user_education_field: str | None = None) -> tuple[float, str | None]:
     """Matches user interest fields with job industry. Max 15 points. Penalty if mismatched."""
-    if not user_interests or not job_industry:
+    if not job_industry:
         return 7.5, None
-    pl = _normalize(user_interests)
+        
+    combined_interests = list(user_interests) if user_interests else []
+    if user_education_field and user_education_field not in combined_interests:
+        combined_interests.append(user_education_field)
+        
+    if not combined_interests:
+        return 7.5, None
+
+    pl = _normalize(combined_interests)
     ji = job_industry.lower().strip()
     
     for interest in pl:
@@ -446,7 +454,7 @@ def calculate_job_match(user: User, job: Job, certificates: Optional[str] = None
     jt_score = (raw_jt_score / 10.0) * 10.0 if raw_jt_score >= 0 else raw_jt_score
     
     # 5. Industry match (max 15, can go negative)
-    raw_ind_score, ind_reason = _industry_match_score(user.interest_fields, job.industry)
+    raw_ind_score, ind_reason = _industry_match_score(user.interest_fields, job.industry, user.education_field)
     ind_score = raw_ind_score
     
     # 6. Certificates match (max 10)

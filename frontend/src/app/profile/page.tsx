@@ -1427,8 +1427,8 @@ export default function ProfilePage() {
                 ) : recommendedScholarships.length > 0 ? (
                   <div className="space-y-4">
                     {recommendedScholarships.map((sch) => {
-                      const score = Math.round(sch.match_score * 100) / 100;
-                      const pct = Math.round(score);
+                      const score = Math.round(sch.match_score * 10) / 10;
+                      const pct = score;
                       const scoreColor = pct >= 80 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : pct >= 50 ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-slate-50 text-slate-600 border-slate-200";
                       return (
                         <a key={sch.id} href={`/scholarships/${sch.id}`} target="_blank" rel="noopener noreferrer" className="block border border-slate-150 rounded-[1.5rem] p-7 bg-white hover:shadow-xl hover:border-indigo-200 transition-all duration-300 relative group cursor-pointer">
