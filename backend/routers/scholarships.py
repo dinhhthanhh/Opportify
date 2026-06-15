@@ -7,7 +7,7 @@ from typing import List, Optional
 from datetime import datetime, date, time
 import uuid
 from models.user import User
-from routers.recommend import _edu_scholarship_score, _normalize
+from routers.recommend import compute_scholarship_match_score
 
 router = APIRouter()
 
@@ -148,32 +148,21 @@ async def get_scholarships(
     result = await db.execute(query)
     items = result.scalars().all()
 
-    # 2. Advanced AI Sorting (Match Score)
+    # 2. Advanced AI Sorting (Match Score) — dùng chung helper với /recommend/scholarships
     if sort_by == "match_score" and user_id:
         try:
             uid = uuid.UUID(user_id)
             user_res = await db.execute(select(User).where(User.id == uid))
             user = user_res.scalar_one_or_none()
-            
+
             if user:
-                scored = []
-                for s in items:
-                    edu_score, _ = _edu_scholarship_score(user.education_level, s.level)
-                    field_score = 0.0
-                    if user.interest_fields and s.field:
-                        s_field_lower = s.field.lower()
-                        for interest in _normalize(user.interest_fields):
-                            if interest in s_field_lower or s_field_lower in interest:
-                                field_score = 40.0
-                                break
-                    
-                    score = edu_score + field_score
-                    scored.append((score, s))
-                
+                scored = [
+                    (compute_scholarship_match_score(user, s)[0], s) for s in items
+                ]
                 scored.sort(key=lambda x: x[0], reverse=(order == "desc"))
                 items = [x[1] for x in scored]
-        except:
-            pass
+        except Exception as e:
+            print(f"Scholarship sorting error: {e}")
 
     # Pagination
     start = (page - 1) * limit

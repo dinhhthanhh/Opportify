@@ -67,7 +67,7 @@ function CountdownTimer({ deadline }: { deadline?: string }) {
 
       const days = Math.floor(difference / (1000 * 60 * 60 * 24));
       const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((difference / 1000 / 65) % 60); // stable calculation
+      const minutes = Math.floor((difference / 1000 / 60) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
 
       setTimeLeft({ days, hours, minutes, seconds });

@@ -49,25 +49,30 @@ def _skills_overlap_score(user_skills: list[str], item_skills: list[str]) -> tup
     u = set(_normalize(user_skills))
     i = set(_normalize(item_skills))
     if not i:
-        return 25.0, []  # nếu job không yêu cầu skill → trung bình
-    intersection = u & i
+        return 35.0, []  # nếu job không yêu cầu skill → cho điểm trung bình cao
     if not u:
-        return 0.0, []
+        return 20.0, []  # user chưa khai skill → cho baseline thay vì 0
+    intersection = u & i
     matched = sorted(intersection)
-    return min(len(intersection) / len(i), 1.0) * 50, matched
+    if not intersection:
+        return 15.0, []  # không match nhưng vẫn có baseline
+    # Boost: ngay cả 1 skill match đã được tính generous
+    ratio = min(len(intersection) / len(i), 1.0)
+    return 25.0 + ratio * 25.0, matched  # 25-50 khi có match
 
 
 def _level_score(user_level: str | None, item_experience: str | None) -> tuple[float, str | None]:
     """Score 20 điểm nếu level người dùng nằm trong range phù hợp.
     Returns (score, reason)."""
     if not user_level or not item_experience:
-        return 10.0, None
+        return 15.0, None  # baseline cao hơn khi thiếu dữ liệu
     u = LEVEL_ORDER.get(user_level.lower(), -1)
     i = LEVEL_ORDER.get(item_experience.lower(), -1)
     if u == -1 or i == -1:
-        return 10.0, None
+        return 15.0, None
     diff = abs(u - i)
-    score = max(0, 20 - diff * 7)
+    # Phạt nhẹ hơn: 20 / 14 / 8 / 4
+    score = max(4.0, 20.0 - diff * 6.0)
     if diff == 0:
         reason = f"Cấp bậc {LEVEL_LABELS.get(user_level.lower(), user_level)} phù hợp hoàn toàn"
     elif diff == 1:
@@ -78,71 +83,63 @@ def _level_score(user_level: str | None, item_experience: str | None) -> tuple[f
 
 
 def _location_score(preferred: list[str] | None, item_location: str | None) -> tuple[float, str | None]:
-    """Score 15 điểm nếu địa điểm nằm trong danh sách ưu tiên. Phạt nếu lệch địa lý."""
+    """Score 15 điểm nếu địa điểm nằm trong danh sách ưu tiên. Phạt nhẹ nếu lệch địa lý."""
     if not preferred:
         return 15.0, None # Không yêu cầu cụ thể
     if not item_location:
-        return 7.0, None
-        
+        return 10.0, None
+
     pl = _normalize(preferred)
     iloc = item_location.lower().strip()
-    
+
     if "remote" in pl or "anywhere" in pl or "toàn quốc" in iloc:
         return 15.0, f"Phù hợp địa điểm: {item_location}"
-        
+
     for loc in pl:
         if loc in iloc or iloc in loc:
             return 15.0, f"Phù hợp địa điểm: {item_location}"
-            
-    # Không khớp địa điểm -> Phạt
-    return -15.0, f"Địa điểm ({item_location}) không khớp mong muốn"
 
-def _industry_match_score(user_interests: list[str] | None, job_industry: str | None, user_education_field: str | None = None) -> tuple[float, str | None]:
-    """Matches user interest fields with job industry. Max 15 points. Penalty if mismatched."""
-    if not job_industry:
-        return 7.5, None
-        
-    combined_interests = list(user_interests) if user_interests else []
-    if user_education_field and user_education_field not in combined_interests:
-        combined_interests.append(user_education_field)
-        
-    if not combined_interests:
-        return 7.5, None
+    # Không khớp địa điểm -> phạt nhẹ (vẫn còn 4 điểm baseline)
+    return 4.0, None
 
-    pl = _normalize(combined_interests)
+def _industry_match_score(user_interests: list[str] | None, job_industry: str | None) -> tuple[float, str | None]:
+    """Matches user interest fields with job industry. Max 15 points."""
+    if not user_interests or not job_industry:
+        return 10.0, None  # baseline cao hơn khi thiếu dữ liệu
+    pl = _normalize(user_interests)
     ji = job_industry.lower().strip()
-    
+
     for interest in pl:
         if interest in ji or ji in interest:
             return 15.0, f"Ngành nghề phù hợp: {job_industry}"
-            
+
     # Check word overlap
     ji_words = set(ji.split())
     for interest in pl:
         interest_words = set(interest.split())
         common = ji_words & interest_words - {"và", "and", "of", "the", "các", "ngành", "nghề"}
         if common:
-            return 10.0, f"Ngành liên quan: {job_industry}"
-            
-    return -15.0, f"Khác ngành quan tâm (Công việc thuộc: {job_industry})"
+            return 12.0, f"Ngành liên quan: {job_industry}"
+
+    # Không khớp ngành — không phạt mạnh, chỉ trả baseline thấp
+    return 4.0, None
 
 
 
 def _jobtype_score(preferred_types: list[str] | None, item_type: str | None) -> tuple[float, str | None]:
-    """Score 10 điểm nếu job type khớp. Phạt nặng nếu không khớp với nguyện vọng của user."""
+    """Score 10 điểm nếu job type khớp. Phạt nhẹ nếu không khớp."""
     if not preferred_types:
-        return 10.0, None # Không yêu cầu cụ thể
+        return 10.0, None
     if not item_type:
-        return 5.0, None
-        
+        return 7.0, None
+
     pt = _normalize(preferred_types)
     it = item_type.lower().strip()
-    
+
     if it in pt:
         return 10.0, f"Loại hình phù hợp: {item_type}"
-    else:
-        req_types_str = ", ".join(preferred_types)
-        return -20.0, f"Khác loại hình mong muốn (Yêu cầu: {req_types_str}, Công việc là: {item_type})"
+    # Khác loại hình → phạt nhẹ nhưng vẫn còn baseline
+    return 3.0, None
 
 
 
@@ -169,15 +166,16 @@ def _edu_scholarship_score(user_edu: str | None, scholarship_level: str | None, 
             if diff == 1:
                 return 20.0, f"Học bổng bậc {EDU_LABELS.get(s_lvl, s_lvl)} — bước tiến tiếp theo phù hợp"
             if diff == -1:
-                return 8.0, None
-    return 0.0, None
+                return 12.0, None
+            return 8.0, None  # baseline cho mọi diff khác thay vì 0
+    return 12.0, None  # user chưa khai education_level → baseline thay vì 0
 
 
 def _field_interest_score(user_interests: list[str] | None, scholarship_field: str | None) -> tuple[float, str | None]:
     """Match lĩnh vực quan tâm với field của học bổng.
     Returns (score, reason)."""
     if not user_interests or not scholarship_field:
-        return 15.0, None
+        return 22.0, None  # baseline cao hơn khi thiếu dữ liệu
     s_field_lower = scholarship_field.lower()
     matched_interests = []
     for interest in _normalize(user_interests):
@@ -185,39 +183,43 @@ def _field_interest_score(user_interests: list[str] | None, scholarship_field: s
             matched_interests.append(interest)
     if matched_interests:
         return 35.0, f"Phù hợp lĩnh vực quan tâm: {', '.join(matched_interests)}"
-    return 5.0, None
+    # Word overlap fallback
+    s_words = set(s_field_lower.split())
+    for interest in _normalize(user_interests):
+        if s_words & set(interest.split()) - {"và", "and", "of", "the", "các"}:
+            return 20.0, None
+    return 14.0, None
 
 
 def _edu_field_score(user_edu_field: str | None, scholarship_field: str | None) -> tuple[float, str | None]:
     """Match ngành học hiện tại với field của học bổng.
     Returns (score, reason)."""
     if not user_edu_field or not scholarship_field:
-        return 10.0, None
+        return 14.0, None  # baseline cao hơn
     uf = user_edu_field.lower().strip()
     sf = scholarship_field.lower().strip()
     if uf in sf or sf in uf:
         return 20.0, f"Ngành học ({user_edu_field}) phù hợp với lĩnh vực học bổng"
-    # Kiểm tra từ khóa chung
     uf_words = set(uf.split())
     sf_words = set(sf.split())
     common = uf_words & sf_words - {"và", "and", "of", "the", "các", "khoa", "học"}
     if common:
-        return 12.0, f"Ngành học liên quan ({', '.join(common)})"
-    return 0.0, None
+        return 15.0, f"Ngành học liên quan ({', '.join(common)})"
+    return 8.0, None  # baseline khi không khớp
 
 
 def _country_score_updated(preferred_locations: list[str] | None, target_country: str | None, scholarship_country: str | None) -> tuple[float, str | None]:
     """Matches scholarship country with user's preferred locations and specific target country. Max 20 points."""
     if not scholarship_country:
-        return 10.0, None
+        return 14.0, None  # không khai quốc gia → baseline cao hơn
     sc = scholarship_country.lower().strip()
-    
+
     # 1. Khớp quốc gia du học mong muốn
     if target_country:
         tc = target_country.lower().strip()
         if tc in sc or sc in tc:
             return 20.0, f"Quốc gia mong muốn ({scholarship_country}) phù hợp mục tiêu"
-            
+
     # 2. Khớp danh sách preferred_locations
     if preferred_locations:
         pl = _normalize(preferred_locations)
@@ -225,9 +227,9 @@ def _country_score_updated(preferred_locations: list[str] | None, target_country
             if loc in sc or sc in loc:
                 return 18.0, f"Quốc gia phù hợp địa điểm ưu tiên: {scholarship_country}"
         if "remote" in pl or "anywhere" in pl or "quốc tế" in pl or "toàn cầu" in pl:
-            return 15.0, "Học bổng quốc tế/toàn cầu"
-            
-    return 5.0, None
+            return 16.0, "Học bổng quốc tế/toàn cầu"
+
+    return 10.0, None  # baseline cao hơn — không phạt mạnh khi user chưa khai mong muốn
 
 
 def _certificates_score(user_certs_str: str | None, item_desc: str | None, item_req: str | None) -> tuple[float, list[str]]:
@@ -254,17 +256,20 @@ def _certificates_score(user_certs_str: str | None, item_desc: str | None, item_
 
 
 def _gpa_score(user_gpa: float | None, min_gpa: float | None) -> tuple[float, str | None]:
-    """GPA matching: max 10 points. Heavy penalty if below min_gpa."""
+    """GPA matching: max 10 points. Phạt nhẹ hơn nếu chưa đạt."""
     if not user_gpa:
-        return 7.0, None
+        return 8.0, None  # baseline cao hơn khi user chưa khai GPA
     if not min_gpa:
         return 10.0, f"GPA của bạn là {user_gpa:.2f} (Học bổng không yêu cầu GPA tối thiểu)"
     if user_gpa >= min_gpa:
         diff = user_gpa - min_gpa
-        bonus = min(diff * 4.0, 3.0)  # Thêm điểm thưởng nếu GPA cao hơn yêu cầu
+        bonus = min(diff * 4.0, 3.0)
         return 7.0 + bonus, f"GPA đạt yêu cầu: {user_gpa:.2f} (Yêu cầu: {min_gpa:.2f})"
-    else:
-        return -20.0, f"GPA chưa đạt yêu cầu: {user_gpa:.2f} (Yêu cầu tối thiểu: {min_gpa:.2f})"
+    # GPA chưa đạt — phạt nhẹ thay vì -20
+    diff = min_gpa - user_gpa
+    if diff <= 0.2:
+        return 3.0, f"GPA gần đạt yêu cầu: {user_gpa:.2f} (Yêu cầu: {min_gpa:.2f})"
+    return -8.0, f"GPA chưa đạt yêu cầu: {user_gpa:.2f} (Yêu cầu tối thiểu: {min_gpa:.2f})"
 
 
 def _language_score(user_langs_str: str | None, lang_req: str | None) -> tuple[float, str | None]:
@@ -272,7 +277,8 @@ def _language_score(user_langs_str: str | None, lang_req: str | None) -> tuple[f
     if not lang_req:
         return 10.0, None
     if not user_langs_str:
-        return 0.0, f"Học bổng yêu cầu chứng chỉ ngoại ngữ: {lang_req}"
+        # Phạt nhẹ thay vì 0 — user có thể bổ sung chứng chỉ
+        return 3.0, f"Học bổng yêu cầu chứng chỉ ngoại ngữ: {lang_req}"
         
     req_lower = lang_req.lower().strip()
     user_langs = {}
@@ -296,7 +302,7 @@ def _language_score(user_langs_str: str | None, lang_req: str | None) -> tuple[f
         
     user_score_str = user_langs.get(matched_test)
     if not user_score_str:
-        return -15.0, f"Thiếu chứng chỉ yêu cầu: {matched_test.upper()} (Yêu cầu: {lang_req})"
+        return -5.0, f"Thiếu chứng chỉ yêu cầu: {matched_test.upper()} (Yêu cầu: {lang_req})"
         
     try:
         import re
@@ -307,7 +313,11 @@ def _language_score(user_langs_str: str | None, lang_req: str | None) -> tuple[f
             if user_val >= req_val:
                 return 10.0, f"Ngoại ngữ đạt yêu cầu: {matched_test.upper()} {user_score_str} (Yêu cầu: {lang_req})"
             else:
-                return -15.0, f"Điểm ngoại ngữ chưa đạt: {matched_test.upper()} {user_score_str} (Yêu cầu: {lang_req})"
+                # Phạt nhẹ hơn: nếu thiếu ít thì gần như đạt
+                gap_ratio = (req_val - user_val) / max(req_val, 1.0)
+                if gap_ratio <= 0.1:
+                    return 4.0, f"Điểm ngoại ngữ gần đạt: {matched_test.upper()} {user_score_str} (Yêu cầu: {lang_req})"
+                return -5.0, f"Điểm ngoại ngữ chưa đạt: {matched_test.upper()} {user_score_str} (Yêu cầu: {lang_req})"
                 
         elif matched_test == "jlpt":
             req_lvl_match = re.search(r'n([1-5])', req_lower)
@@ -318,7 +328,10 @@ def _language_score(user_langs_str: str | None, lang_req: str | None) -> tuple[f
                 if user_lvl <= req_lvl:
                     return 10.0, f"Ngoại ngữ đạt yêu cầu: JLPT {user_score_str.upper()} (Yêu cầu: {lang_req})"
                 else:
-                    return -15.0, f"Trình độ JLPT chưa đạt: {user_score_str.upper()} (Yêu cầu: {lang_req})"
+                    # Chênh 1 cấp → gần đạt, ≥2 cấp mới phạt
+                    if user_lvl - req_lvl == 1:
+                        return 4.0, f"Trình độ JLPT gần đạt: {user_score_str.upper()} (Yêu cầu: {lang_req})"
+                    return -5.0, f"Trình độ JLPT chưa đạt: {user_score_str.upper()} (Yêu cầu: {lang_req})"
                     
         elif matched_test == "topik":
             req_lvl_match = re.search(r'([1-6])', req_lower)
@@ -329,7 +342,9 @@ def _language_score(user_langs_str: str | None, lang_req: str | None) -> tuple[f
                 if user_lvl >= req_lvl:
                     return 10.0, f"Ngoại ngữ đạt yêu cầu: TOPIK {user_score_str} (Yêu cầu: {lang_req})"
                 else:
-                    return -15.0, f"Trình độ TOPIK chưa đạt: {user_score_str} (Yêu cầu: {lang_req})"
+                    if req_lvl - user_lvl == 1:
+                        return 4.0, f"Trình độ TOPIK gần đạt: {user_score_str} (Yêu cầu: {lang_req})"
+                    return -5.0, f"Trình độ TOPIK chưa đạt: {user_score_str} (Yêu cầu: {lang_req})"
     except Exception:
         pass
         
@@ -381,6 +396,81 @@ def _build_match_reasons(
     if matched_certs:
         reasons.append(f"Chứng chỉ phù hợp: {', '.join(matched_certs)}")
     return reasons
+
+
+def compute_job_match_score(
+    user: User,
+    job: Job,
+    certificates: str | None = None,
+) -> tuple[float, list[str]]:
+    """Tính match_score (0-100) và lý do match cho 1 job.
+    Dùng chung cho /recommend/jobs và sort match_score trong /jobs."""
+    raw_skills_score, matched_skills = _skills_overlap_score(user.skills, job.skills or [])
+    skills_score = (raw_skills_score / 50.0) * 35.0
+
+    raw_lvl_score, lvl_reason = _level_score(user.experience_level, job.experience)
+    lvl_score = (raw_lvl_score / 20.0) * 15.0
+
+    raw_loc_score, loc_reason = _location_score(user.preferred_locations, job.location)
+    loc_score = (raw_loc_score / 15.0) * 15.0 if raw_loc_score >= 0 else raw_loc_score
+
+    raw_jt_score, jt_reason = _jobtype_score(user.preferred_job_types, job.job_type)
+    jt_score = (raw_jt_score / 10.0) * 10.0 if raw_jt_score >= 0 else raw_jt_score
+
+    raw_ind_score, ind_reason = _industry_match_score(user.interest_fields, job.industry)
+    ind_score = raw_ind_score
+
+    cert_score, matched_certs = _certificates_score(certificates, job.description, job.requirements)
+
+    # Baseline bump để điểm tổng hấp dẫn hơn cho user
+    BASELINE_BUMP = 8.0
+    score = skills_score + lvl_score + loc_score + jt_score + ind_score + cert_score + BASELINE_BUMP
+    score = max(0.0, min(score, 100.0))
+
+    reasons = _build_match_reasons(matched_skills, lvl_reason, loc_reason, jt_reason, matched_certs, ind_reason)
+    return score, reasons
+
+
+def compute_scholarship_match_score(
+    user: User,
+    s: Scholarship,
+    certificates: str | None = None,
+    research_papers: str | None = None,
+    target_country: str | None = None,
+    target_degree: str | None = None,
+    language_scores: str | None = None,
+) -> tuple[float, list[str]]:
+    """Tính match_score (0-100) và lý do match cho 1 scholarship.
+    Dùng chung cho /recommend/scholarships và sort match_score trong /scholarships."""
+    edu_score, edu_reason = _edu_scholarship_score(user.education_level, s.level, target_degree)
+
+    raw_field_score, field_reason = _field_interest_score(user.interest_fields, s.field)
+    field_score = (raw_field_score / 35.0) * 25.0
+
+    raw_edufield_score, edufield_reason = _edu_field_score(user.education_field, s.field)
+    edufield_score = (raw_edufield_score / 20.0) * 15.0
+
+    ctry_score, ctry_reason = _country_score_updated(user.preferred_locations, target_country, s.country)
+
+    raw_gpa_score, gpa_reason = _gpa_score(user.gpa, s.min_gpa)
+    gpa_score = (raw_gpa_score / 10.0) * 10.0 if raw_gpa_score >= 0 else raw_gpa_score
+
+    raw_lang_score, lang_reason = _language_score(language_scores, s.language_requirement)
+    lang_score = (raw_lang_score / 10.0) * 10.0 if raw_lang_score >= 0 else raw_lang_score
+
+    research_score, research_reason = _research_papers_score(
+        research_papers, s.title, s.description, s.requirements, s.level
+    )
+
+    BASELINE_BUMP = 8.0
+    score = edu_score + field_score + edufield_score + ctry_score + gpa_score + lang_score + research_score + BASELINE_BUMP
+    score = max(0.0, min(score, 100.0))
+
+    reasons = []
+    for r in (edu_reason, field_reason, edufield_reason, ctry_reason, gpa_reason, lang_reason, research_reason):
+        if r:
+            reasons.append(r)
+    return score, reasons
 
 
 def _job_to_dict(job: Job, score: float, match_reasons: list[str]) -> dict:
@@ -436,37 +526,6 @@ async def _get_user(user_id: str, db: AsyncSession) -> User:
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
-def calculate_job_match(user: User, job: Job, certificates: Optional[str] = None) -> tuple[float, list[str]]:
-    # 1. Skills overlap (max 35)
-    raw_skills_score, matched_skills = _skills_overlap_score(user.skills, job.skills or [])
-    skills_score = (raw_skills_score / 50.0) * 35.0
-    
-    # 2. Level match (max 15)
-    raw_lvl_score, lvl_reason = _level_score(user.experience_level, job.experience)
-    lvl_score = (raw_lvl_score / 20.0) * 15.0
-    
-    # 3. Location match (max 15, can go negative)
-    raw_loc_score, loc_reason = _location_score(user.preferred_locations, job.location)
-    loc_score = (raw_loc_score / 15.0) * 15.0 if raw_loc_score >= 0 else raw_loc_score
-    
-    # 4. Job Type match (max 10, can go negative)
-    raw_jt_score, jt_reason = _jobtype_score(user.preferred_job_types, job.job_type)
-    jt_score = (raw_jt_score / 10.0) * 10.0 if raw_jt_score >= 0 else raw_jt_score
-    
-    # 5. Industry match (max 15, can go negative)
-    raw_ind_score, ind_reason = _industry_match_score(user.interest_fields, job.industry, user.education_field)
-    ind_score = raw_ind_score
-    
-    # 6. Certificates match (max 10)
-    cert_score, matched_certs = _certificates_score(certificates, job.description, job.requirements)
-
-    score = skills_score + lvl_score + loc_score + jt_score + ind_score + cert_score
-    # Enforce range [0.0, 100.0]
-    score = max(0.0, min(score, 100.0))
-    
-    reasons = _build_match_reasons(matched_skills, lvl_reason, loc_reason, jt_reason, matched_certs, ind_reason)
-    return score, reasons
-
 @router.get("/jobs")
 async def recommend_jobs(
     user_id: str = Query(..., description="UUID của user muốn lấy gợi ý"),
@@ -484,7 +543,7 @@ async def recommend_jobs(
 
     scored = []
     for job in jobs:
-        score, reasons = calculate_job_match(user, job, certificates)
+        score, reasons = compute_job_match_score(user, job, certificates)
         scored.append((score, job, reasons))
 
     # Sắp xếp
@@ -505,41 +564,6 @@ async def recommend_jobs(
         "results": [_job_to_dict(job, score, reasons) for score, job, reasons in top],
     }
 
-
-def calculate_scholarship_match(
-    user: User, 
-    s: Scholarship, 
-    target_degree: Optional[str] = None, 
-    target_country: Optional[str] = None,
-    certificates: Optional[str] = None,
-    research_papers: Optional[str] = None,
-    language_scores: Optional[str] = None
-) -> tuple[float, list[str]]:
-    edu_score, edu_reason = _edu_scholarship_score(user.education_level, s.level, target_degree)
-    raw_field_score, field_reason = _field_interest_score(user.interest_fields, s.field)
-    field_score = (raw_field_score / 35.0) * 25.0
-    raw_edufield_score, edufield_reason = _edu_field_score(user.education_field, s.field)
-    edufield_score = (raw_edufield_score / 20.0) * 15.0
-    ctry_score, ctry_reason = _country_score_updated(user.preferred_locations, target_country, s.country)
-    raw_gpa_score, gpa_reason = _gpa_score(user.gpa, s.min_gpa)
-    gpa_score = (raw_gpa_score / 10.0) * 10.0 if raw_gpa_score >= 0 else raw_gpa_score
-    raw_lang_score, lang_reason = _language_score(language_scores, s.language_requirement)
-    lang_score = (raw_lang_score / 10.0) * 10.0 if raw_lang_score >= 0 else raw_lang_score
-    research_score, research_reason = _research_papers_score(research_papers, s.title, s.description, s.requirements, s.level)
-
-    score = edu_score + field_score + edufield_score + ctry_score + gpa_score + lang_score + research_score
-    score = max(0.0, min(score, 100.0))
-
-    reasons = []
-    if edu_reason: reasons.append(edu_reason)
-    if field_reason: reasons.append(field_reason)
-    if edufield_reason: reasons.append(edufield_reason)
-    if ctry_reason: reasons.append(ctry_reason)
-    if gpa_reason: reasons.append(gpa_reason)
-    if lang_reason: reasons.append(lang_reason)
-    if research_reason: reasons.append(research_reason)
-
-    return score, reasons
 
 @router.get("/scholarships")
 async def recommend_scholarships(
@@ -562,8 +586,13 @@ async def recommend_scholarships(
 
     scored = []
     for s in scholarships:
-        score, reasons = calculate_scholarship_match(
-            user, s, target_degree, target_country, certificates, research_papers, language_scores
+        score, reasons = compute_scholarship_match_score(
+            user, s,
+            certificates=certificates,
+            research_papers=research_papers,
+            target_country=target_country,
+            target_degree=target_degree,
+            language_scores=language_scores,
         )
         scored.append((score, s, reasons))
 

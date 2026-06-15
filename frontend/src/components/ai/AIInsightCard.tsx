@@ -19,23 +19,9 @@ export default function AIInsightCard({ itemId, itemType }: AIInsightCardProps) 
         const user = await api.profile.getMe()
         if (!user) return
 
-        const localKey = `profile_mock_${user.id}`
-        const localDataRaw = localStorage.getItem(localKey)
-        let certs = "", papers = "", country = "", degree = "", langScoresStr = ""
-
-        if (localDataRaw) {
-          const localData = JSON.parse(localDataRaw)
-          certs = localData.certificates || ""
-          papers = localData.researchPapers || ""
-          country = localData.targetCountry || ""
-          degree = localData.targetDegree || ""
-          const langList: any[] = localData.languageScores || []
-          langScoresStr = langList.filter(l => l.certificate && l.score).map(l => `${l.certificate}:${l.score}`).join(",")
-        }
-
         const stamp = localStorage.getItem(`profile_stamp_${user.id}`) || "0"
         const cacheKey = `insight_${user.id}_${itemId}_${stamp}`
-        
+
         const cached = localStorage.getItem(cacheKey)
         if (cached) {
           setInsight(JSON.parse(cached))
@@ -43,19 +29,15 @@ export default function AIInsightCard({ itemId, itemType }: AIInsightCardProps) 
           return
         }
 
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (typeof window !== "undefined") {
+          const token = localStorage.getItem("access_token")
+          if (token) headers["Authorization"] = `Bearer ${token}`
+        }
         const response = await fetch(`${API_URL}/api/v1/ai/insight`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            item_id: itemId, 
-            item_type: itemType,
-            user_id: user.id,
-            certificates: certs,
-            research_papers: papers,
-            target_country: country,
-            target_degree: degree,
-            language_scores: langScoresStr
-          })
+          headers,
+          body: JSON.stringify({ item_id: itemId, item_type: itemType })
         })
         const data = await response.json()
         setInsight(data)

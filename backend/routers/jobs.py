@@ -12,7 +12,7 @@ import math
 
 # Import helpers from recommend if needed, or re-implement here for self-containment
 from models.user import User
-from routers.recommend import _skills_overlap_score, _level_score, _location_score, _jobtype_score, _job_to_dict
+from routers.recommend import compute_job_match_score
 
 router = APIRouter()
 
@@ -162,15 +162,9 @@ async def get_jobs(
             user = user_res.scalar_one_or_none()
 
             if user:
-                scored_jobs = []
-                for job in jobs:
-                    skills_score, _ = _skills_overlap_score(user.skills, job.skills or [])
-                    lvl_score, _ = _level_score(user.experience_level, job.experience)
-                    loc_score, _ = _location_score(user.preferred_locations, job.location)
-                    jt_score, _ = _jobtype_score(user.preferred_job_types, job.job_type)
-                    score = skills_score + lvl_score + loc_score + jt_score
-                    scored_jobs.append((score, job))
-
+                scored_jobs = [
+                    (compute_job_match_score(user, job)[0], job) for job in jobs
+                ]
                 scored_jobs.sort(key=lambda x: x[0], reverse=(order == "desc"))
                 jobs = [x[1] for x in scored_jobs]
         except Exception as e:

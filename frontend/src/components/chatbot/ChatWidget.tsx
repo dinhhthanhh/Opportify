@@ -13,17 +13,18 @@ export default function ChatWidget() {
   const [loading, setLoading] = useState(false)
 
   const sendMessage = async () => {
-    if (!input.trim()) return
+    if (!input.trim() || loading) return
     const userMsg = { role: "user", content: input }
-    setMessages(prev => [...prev, userMsg])
+    const newMessages = [...messages, userMsg]
+    setMessages(newMessages)
     setInput("")
     setLoading(true)
 
     try {
-      const { reply } = await api.ai.chat(input, messages as Message[])
-      setMessages(prev => [...prev, { role: "assistant", content: reply }])
+      const { reply } = await api.ai.chat(input, newMessages as Message[])
+      setMessages([...newMessages, { role: "assistant", content: reply }])
     } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "Xin lỗi, đã có lỗi kết nối." }])
+      setMessages([...newMessages, { role: "assistant", content: "Xin lỗi, đã có lỗi kết nối." }])
     } finally {
       setLoading(false)
     }
