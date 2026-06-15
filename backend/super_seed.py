@@ -240,7 +240,7 @@ def generate_jobs():
                     industry=industry,
                     working_time="Thứ 2 - Thứ 6",
                     skills=skills,
-                    job_type=random.choice(JOB_TYPES),
+                    job_type=random.choice(["fulltime", "parttime", "internship"]) if level == "fresher" else random.choice(["fulltime", "parttime"]),
                     work_mode=work_mode,
                     experience=level,
                     url=f"https://opportify.ai/jobs/{uuid.uuid4()}",
