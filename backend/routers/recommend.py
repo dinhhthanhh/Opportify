@@ -117,10 +117,12 @@ def _industry_match_score(user_interests: list[str] | None, job_industry: str | 
             return 15.0, f"Ngành nghề phù hợp: {job_industry}"
             
     # Check word overlap
-    ji_words = set(ji.split())
+    ji_words = {w for w in ji.split() if len(w) > 2 and w not in {"và", "and", "the", "các", "ngành", "nghề", "của", "cho", "với"}}
     for interest in pl:
-        interest_words = set(interest.split())
-        common = ji_words & interest_words - {"và", "and", "of", "the", "các", "ngành", "nghề"}
+        interest_words = {w for w in interest.split() if len(w) > 2}
+        common = ji_words & interest_words
+        # Bỏ qua các từ quá phổ biến dễ gây nhiễu
+        common = common - {"thông", "tin", "công", "kỹ", "thuật", "học", "hệ"}
         if common:
             return 10.0, f"Ngành liên quan: {job_industry}"
             
