@@ -73,8 +73,8 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md">
-      <div className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
+    <nav className={`sticky top-0 z-50 w-full border-b border-slate-100 ${isInitializing ? "bg-white border-none" : "bg-white/80 backdrop-blur-md"}`}>
+      <div className={`flex items-center justify-between px-6 py-4 max-w-7xl mx-auto ${isInitializing ? "hidden" : ""}`}>
         <Link href="/" className="font-black text-3xl tracking-tighter text-blue-600 flex items-center gap-2">
           <Sparkles size={28} className="text-amber-400 drop-shadow-sm" />
           Opportify
