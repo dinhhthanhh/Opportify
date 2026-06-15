@@ -157,7 +157,10 @@ export default function ProfilePage() {
   useEffect(() => {
     const initProfile = async () => {
       try {
-        await api.auth.autoLogin();
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+          await api.auth.autoLogin();
+        }
         const user = await api.profile.getMe();
 
         // Avatar: ưu tiên bản localStorage; nếu DB lưu đường dẫn tương đối thì ghép API_URL

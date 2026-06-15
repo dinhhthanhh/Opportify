@@ -30,7 +30,7 @@ export default function RegisterPage() {
       
       await api.auth.register(formData.email, username, formData.password, formData.name);
       await api.auth.login(formData.email, formData.password);
-      window.location.href = "/";
+      window.location.href = "/jobs";
     } catch (error: any) {
       alert(`Đăng ký thất bại: ${error.message}`);
       console.error(error);

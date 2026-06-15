@@ -24,7 +24,7 @@ export default function LoginPage() {
 
     try {
       await api.auth.login(email, password);
-      window.location.href = "/";
+      window.location.href = "/jobs";
     } catch (err) {
       alert("Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.");
       console.error(err);
