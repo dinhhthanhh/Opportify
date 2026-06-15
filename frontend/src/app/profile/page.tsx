@@ -398,13 +398,19 @@ export default function ProfilePage() {
         }
       });
 
+      const newJobTypes: string[] = [];
+      if (aspirations.includes("Tìm việc làm Full-time")) newJobTypes.push("fulltime");
+      if (aspirations.includes("Thực tập doanh nghiệp")) newJobTypes.push("internship");
+      if (aspirations.includes("Làm việc tự do")) newJobTypes.push("freelance");
+
       const payload = {
         ...editData,
         experience_level: expLvl as any,
         gpa: parsedGpa > 0 ? parsedGpa : (editData.gpa || null),
         skills: finalSkills,
         preferred_locations: finalLocations,
-        interest_fields: finalFields
+        interest_fields: finalFields,
+        preferred_job_types: newJobTypes
       };
 
       // 1. Save to backend database
