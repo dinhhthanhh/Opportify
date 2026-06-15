@@ -12,11 +12,27 @@ export default function RegisterPage() {
     confirmPassword: ""
   })
 
-  const handleRegister = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Simulated register logic
-    console.log("Register with:", formData)
-    alert("Đăng ký thành công! (Simulated)")
+    if (formData.password !== formData.confirmPassword) {
+      alert("Mật khẩu không khớp!");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      // Username tạo từ email, cắt phần trước @
+      const username = formData.email.split("@")[0];
+      await api.auth.register(formData.email, username, formData.password, formData.name);
+      await api.auth.login(formData.email, formData.password);
+      window.location.href = "/";
+    } catch (error) {
+      alert("Đăng ký thất bại, email có thể đã tồn tại.");
+      console.error(error);
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -107,9 +123,12 @@ export default function RegisterPage() {
 
               <button
                 type="submit"
-                className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-lg shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group mt-6"
+                disabled={isLoading}
+                className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-lg shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group mt-6 disabled:opacity-50"
               >
-                Tạo tài khoản <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                {isLoading ? "Đang xử lý..." : (
+                  <>Tạo tài khoản <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" /></>
+                )}
               </button>
             </form>
 

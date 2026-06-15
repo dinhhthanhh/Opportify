@@ -8,18 +8,28 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    setIsLoading(true);
+
     if (email.includes("an.nguyen")) {
+      // Cheat code cho owner
       localStorage.setItem("guest_id", "owner");
-    } else {
-      localStorage.setItem("guest_id", email.split('@')[0]);
+      localStorage.removeItem("access_token");
+      window.location.href = "/";
+      return;
     }
-    
-    // Xóa token cũ để Navbar tự động fetch lại token mới qua autoLogin
-    localStorage.removeItem("access_token");
-    window.location.href = "/";
+
+    try {
+      await api.auth.login(email, password);
+      window.location.href = "/";
+    } catch (err) {
+      alert("Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.");
+      console.error(err);
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -79,9 +89,12 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full bg-blue-600 text-white rounded-2xl py-4 font-bold text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group mt-8"
+                disabled={isLoading}
+                className="w-full bg-blue-600 text-white rounded-2xl py-4 font-bold text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group mt-8 disabled:opacity-50"
               >
-                Đăng nhập <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                {isLoading ? "Đang xử lý..." : (
+                  <>Đăng nhập <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" /></>
+                )}
               </button>
             </form>
 

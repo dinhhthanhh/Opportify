@@ -23,6 +23,30 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
    auth: {
+    login: async (email: string, password: string) => {
+      const loginData = new URLSearchParams();
+      loginData.append("username", email);
+      loginData.append("password", password);
+      const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: loginData.toString()
+      });
+      if (!res.ok) throw new Error("Login failed");
+      const data = await res.json();
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.removeItem("guest_id");
+      return data;
+    },
+    register: async (email: string, username: string, password: string, full_name: string) => {
+      const res = await fetch(`${API_URL}/api/v1/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, username, password, full_name })
+      });
+      if (!res.ok) throw new Error("Register failed");
+      return res.json();
+    },
     autoLogin: async () => {
       if (typeof window === "undefined") return;
 

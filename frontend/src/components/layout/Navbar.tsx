@@ -8,6 +8,7 @@ import { api, API_URL } from "@/lib/api";
 export default function Navbar() {
   const pathname = usePathname();
   const [user, setUser] = useState<{ name: string, email: string, avatar?: string | null } | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +46,8 @@ export default function Navbar() {
         }
       } catch (err) {
         console.error("Failed to init app user:", err);
+      } finally {
+        setIsInitializing(false);
       }
     };
     initApp();
@@ -151,6 +154,17 @@ export default function Navbar() {
         </div>
 
       </div >
+
+      {isInitializing && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white">
+          <div className="relative flex items-center justify-center mb-6">
+            <div className="w-20 h-20 border-4 border-blue-50 border-t-blue-600 rounded-full animate-spin absolute"></div>
+            <Sparkles size={32} className="text-blue-600 animate-pulse" />
+          </div>
+          <p className="text-slate-800 font-black text-xl tracking-tight mb-2">Đang tải dữ liệu</p>
+          <p className="text-slate-500 font-medium text-sm">Vui lòng chờ trong giây lát...</p>
+        </div>
+      )}
     </nav >
   );
 }
