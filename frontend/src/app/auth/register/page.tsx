@@ -23,13 +23,15 @@ export default function RegisterPage() {
     
     setIsLoading(true);
     try {
-      // Username tạo từ email, cắt phần trước @
-      const username = formData.email.split("@")[0];
+      // Username tạo từ email, thêm hậu tố ngẫu nhiên để tránh trùng lặp
+      const randomSuffix = Math.random().toString(36).substring(2, 7);
+      const username = `${formData.email.split("@")[0]}_${randomSuffix}`;
+      
       await api.auth.register(formData.email, username, formData.password, formData.name);
       await api.auth.login(formData.email, formData.password);
       window.location.href = "/";
-    } catch (error) {
-      alert("Đăng ký thất bại, email có thể đã tồn tại.");
+    } catch (error: any) {
+      alert(`Đăng ký thất bại: ${error.message}`);
       console.error(error);
       setIsLoading(false);
     }

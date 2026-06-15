@@ -44,7 +44,14 @@ export const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, username, password, full_name })
       });
-      if (!res.ok) throw new Error("Register failed");
+      if (!res.ok) {
+        let errStr = "Register failed";
+        try {
+          const errData = await res.json();
+          errStr = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch(e) {}
+        throw new Error(errStr);
+      }
       return res.json();
     },
     autoLogin: async () => {
