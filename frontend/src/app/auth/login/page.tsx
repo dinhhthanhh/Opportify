@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Sparkles, Mail, Lock, ArrowRight } from "lucide-react"
+import { api } from "@/lib/api"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
