@@ -68,10 +68,13 @@ def _level_score(user_level: str | None, item_experience: str | None) -> tuple[f
         return 10.0, None
     diff = abs(u - i)
     score = max(0, 20 - diff * 7)
+    user_lbl = LEVEL_LABELS.get(user_level.lower(), user_level)
+    item_lbl = LEVEL_LABELS.get(item_experience.lower(), item_experience)
+
     if diff == 0:
-        reason = f"Cấp bậc {LEVEL_LABELS.get(user_level.lower(), user_level)} phù hợp hoàn toàn"
+        reason = f"Cấp bậc {user_lbl} phù hợp hoàn toàn"
     elif diff == 1:
-        reason = f"Cấp bậc gần phù hợp ({LEVEL_LABELS.get(user_level.lower(), user_level)})"
+        reason = f"Cấp bậc gần phù hợp (Yêu cầu {item_lbl}, Bạn là {user_lbl})"
     else:
         reason = None
     return score, reason
