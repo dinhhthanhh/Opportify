@@ -13,13 +13,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const initApp = async () => {
-      try {
-        const token = localStorage.getItem("access_token");
-        if (!token) {
-          await api.auth.autoLogin();
-        }
-
-        // Lấy hồ sơ user thật để hiển thị tên + avatar đúng
+      const fetchProfile = async () => {
         const profile = await api.profile.getMe();
         const localAvatar = localStorage.getItem(`profile_avatar_${profile.id}`);
         let avatar = localAvatar || profile.avatar_url;
@@ -31,8 +25,24 @@ export default function Navbar() {
           email: profile.contact_email || profile.email,
           avatar,
         });
+      };
+
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+          await api.auth.autoLogin();
+          await fetchProfile();
+        } else {
+          try {
+            await fetchProfile();
+          } catch (err) {
+            console.warn("Token may be invalid, trying auto-login...", err);
+            await api.auth.autoLogin();
+            await fetchProfile();
+          }
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Failed to init app user:", err);
       }
     };
     initApp();
