@@ -14,6 +14,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     username: str
     password: str
+    full_name: str | None = None
 
 class Token(BaseModel):
     access_token: str
@@ -33,6 +34,7 @@ async def register(user_in: UserRegister, db: AsyncSession = Depends(get_db)):
     new_user = User(
         email=user_in.email,
         username=user_in.username,
+        full_name=user_in.full_name,
         hashed_password=get_password_hash(user_in.password)
     )
 
