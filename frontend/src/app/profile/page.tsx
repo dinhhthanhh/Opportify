@@ -1230,7 +1230,7 @@ export default function ProfilePage() {
                                   value={exp.projects?.join("\n") || ""}
                                   onChange={e => {
                                     const copy = [...experienceHistory];
-                                    copy[idx].projects = e.target.value.split("\n").map(x => x.trim()).filter(Boolean);
+                                    copy[idx].projects = e.target.value.split("\n");
                                     setExperienceHistory(copy);
                                   }}
                                   placeholder={"Ví dụ:\nXây dựng hệ thống quản lý kho\nTối ưu hiệu năng truy vấn dữ liệu"}
