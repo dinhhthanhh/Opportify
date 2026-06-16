@@ -73,8 +73,8 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className={`sticky top-0 z-50 w-full border-b border-slate-100 ${isInitializing ? "bg-white border-none" : "bg-white/80 backdrop-blur-md"}`}>
-      <div className={`flex items-center justify-between px-6 py-4 max-w-7xl mx-auto ${isInitializing ? "hidden" : ""}`}>
+    <nav className={`sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md`}>
+      <div className={`flex items-center justify-between px-6 py-4 max-w-7xl mx-auto`}>
         <Link href="/" className="font-black text-3xl tracking-tighter text-blue-600 flex items-center gap-2">
           <Sparkles size={28} className="text-amber-400 drop-shadow-sm" />
           Opportify
@@ -94,7 +94,15 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-          {user ? (
+          {isInitializing ? (
+            <div className="flex items-center gap-3 p-1.5 pl-3 border-l border-slate-100">
+              <div className="hidden sm:flex sm:flex-col sm:items-end gap-1">
+                <div className="w-20 h-3 bg-slate-200 animate-pulse rounded"></div>
+                <div className="w-12 h-2 bg-slate-200 animate-pulse rounded"></div>
+              </div>
+              <div className="w-9 h-9 bg-slate-200 animate-pulse rounded-xl"></div>
+            </div>
+          ) : user ? (
             <div className="flex items-center gap-4 pl-4 border-l border-slate-100 relative">
 
               {/* User Dropdown */}
@@ -154,17 +162,6 @@ export default function Navbar() {
         </div>
 
       </div >
-
-      {isInitializing && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white">
-          <div className="relative flex items-center justify-center mb-6">
-            <div className="w-20 h-20 border-4 border-blue-50 border-t-blue-600 rounded-full animate-spin absolute"></div>
-            <Sparkles size={32} className="text-blue-600 animate-pulse" />
-          </div>
-          <p className="text-slate-800 font-black text-xl tracking-tight mb-2">Đang tải dữ liệu</p>
-          <p className="text-slate-500 font-medium text-sm">Vui lòng chờ trong giây lát...</p>
-        </div>
-      )}
     </nav >
   );
 }
